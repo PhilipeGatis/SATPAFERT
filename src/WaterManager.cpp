@@ -127,8 +127,8 @@ void WaterManager::_handleCanisterOff() {
 
 void WaterManager::_handleDraining() {
   // Step 2: Drain until ultrasonic shows target level
-  if (_stateElapsed() == 0 ||
-      (digitalRead(PIN_DRAIN) == LOW && _stateElapsed() < 100)) {
+  // Ensure drain pump is ON at the start of this state
+  if (digitalRead(PIN_DRAIN) == LOW) {
     // Start drain pump on first tick
     digitalWrite(PIN_DRAIN, HIGH);
     Serial.printf("[TPA] Drain pump ON. Target: %.1f cm\n", _drainTargetCm);

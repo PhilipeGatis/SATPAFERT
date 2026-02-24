@@ -1,0 +1,6 @@
+{
+    "name": "ArduinoMock",
+    "version": "1.0.0",
+    "description": "Arduino mock implementations for native unit tests",
+    "platforms": ["native"]
+}
