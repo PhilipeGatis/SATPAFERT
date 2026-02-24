@@ -1,0 +1,98 @@
+#pragma once
+
+#include "Config.h"
+#include <Arduino.h>
+
+// Forward declarations
+class SafetyWatchdog;
+class FertManager;
+
+/// @brief TPA state machine states
+enum class TPAState : uint8_t {
+  IDLE = 0,
+  CANISTER_OFF,
+  DRAINING,
+  FILLING_RESERVOIR,
+  DOSING_PRIME,
+  REFILLING,
+  CANISTER_ON,
+  COMPLETE,
+  ERROR
+};
+
+/// @brief Returns human-readable name for a TPA state
+const char *tpaStateName(TPAState s);
+
+/// @brief Manages the TPA (Troca Parcial de Água) state machine.
+class WaterManager {
+public:
+  WaterManager();
+
+  /// Initialize (references to safety watchdog and fert manager for Prime)
+  void begin(SafetyWatchdog *safety, FertManager *fert);
+
+  /// Run state machine tick — call every loop iteration
+  void update();
+
+  /// Start TPA cycle
+  void startTPA();
+
+  /// Abort TPA cycle immediately (emergency or user cancel)
+  void abortTPA();
+
+  /// Current state
+  TPAState getState() const { return _state; }
+  const char *getStateName() const { return tpaStateName(_state); }
+
+  /// Is a TPA cycle currently running?
+  bool isRunning() const {
+    return _state != TPAState::IDLE && _state != TPAState::COMPLETE &&
+           _state != TPAState::ERROR;
+  }
+
+  // ---- TPA parameters (set via RainMaker) ----
+  void setDrainTargetCm(float cm) { _drainTargetCm = cm; }
+  void setRefillTargetCm(float cm) { _refillTargetCm = cm; }
+  void setPrimeML(float ml) { _primeML = ml; }
+  float getDrainTargetCm() const { return _drainTargetCm; }
+  float getRefillTargetCm() const { return _refillTargetCm; }
+  float getPrimeML() const { return _primeML; }
+
+  /// Canister filter state
+  bool isCanisterOn() const { return digitalRead(PIN_CANISTER) == HIGH; }
+
+  /// Get last TPA completion timestamp (for telemetry)
+  String getLastTPATime() const { return _lastTPATime; }
+  void setLastTPATime(const String &t) { _lastTPATime = t; }
+
+private:
+  TPAState _state;
+  SafetyWatchdog *_safety;
+  FertManager *_fert;
+
+  // State timing
+  unsigned long _stateStartMs;
+
+  // Parameters
+  float _drainTargetCm;
+  float _refillTargetCm;
+  float _primeML;
+
+  // Telemetry
+  String _lastTPATime;
+
+  // ---- State handlers ----
+  void _enterState(TPAState newState);
+  void _handleCanisterOff();
+  void _handleDraining();
+  void _handleFillingReservoir();
+  void _handleDosingPrime();
+  void _handleRefilling();
+  void _handleCanisterOn();
+
+  /// Elapsed time in current state (ms)
+  unsigned long _stateElapsed() const { return millis() - _stateStartMs; }
+
+  /// Abort with error message
+  void _error(const char *msg);
+};

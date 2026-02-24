@@ -1,0 +1,209 @@
+#include "SafetyWatchdog.h"
+#include <algorithm> // std::sort
+
+SafetyWatchdog::SafetyWatchdog()
+    : _lastDistance(-1), _emergency(false), _overflowFlag(false),
+      _maintenance(false), _maintenanceStart(0), _lastCheckMs(0),
+      _emergencyDraining(false), _emergencyDrainStart(0) {}
+
+void SafetyWatchdog::begin() {
+  // Ultrasonic
+  pinMode(PIN_TRIG, OUTPUT);
+  pinMode(PIN_ECHO, INPUT);
+  digitalWrite(PIN_TRIG, LOW);
+
+  // Optical level sensor (active LOW, pulled up)
+  pinMode(PIN_OPTICAL, INPUT_PULLUP);
+
+  // Float switch (active LOW, pulled up)
+  pinMode(PIN_FLOAT, INPUT_PULLUP);
+
+  Serial.println("[Safety] Watchdog initialized.");
+}
+
+// ============================================================================
+// SENSOR READS
+// ============================================================================
+
+float SafetyWatchdog::readUltrasonic() {
+  float samples[ULTRASONIC_SAMPLES];
+  uint8_t validCount = 0;
+
+  for (uint8_t i = 0; i < ULTRASONIC_SAMPLES; i++) {
+    // Send trigger pulse
+    digitalWrite(PIN_TRIG, LOW);
+    delayMicroseconds(2);
+    digitalWrite(PIN_TRIG, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(PIN_TRIG, LOW);
+
+    // Measure echo pulse duration
+    unsigned long duration =
+        pulseIn(PIN_ECHO, HIGH, ULTRASONIC_PULSE_TIMEOUT_US);
+
+    if (duration > 0) {
+      float distance = (duration * 0.0343f) / 2.0f;
+      if (distance > 0 && distance < ULTRASONIC_MAX_DISTANCE_CM) {
+        samples[validCount++] = distance;
+      }
+    }
+    delay(30); // JSN-SR04T needs ~30ms between measurements
+  }
+
+  if (validCount == 0) {
+    Serial.println("[Safety] Ultrasonic: no valid readings!");
+    return _lastDistance; // Return last known good value
+  }
+
+  // If we have enough samples, use median; otherwise use average
+  if (validCount >= 3) {
+    // Pad remaining with valid values for median
+    float sorted[ULTRASONIC_SAMPLES];
+    for (uint8_t i = 0; i < validCount; i++)
+      sorted[i] = samples[i];
+    std::sort(sorted, sorted + validCount);
+    _lastDistance = sorted[validCount / 2];
+  } else {
+    float sum = 0;
+    for (uint8_t i = 0; i < validCount; i++)
+      sum += samples[i];
+    _lastDistance = sum / validCount;
+  }
+
+  return _lastDistance;
+}
+
+bool SafetyWatchdog::isOpticalHigh() {
+  // Active LOW with pullup: LOW = water detected = HIGH level
+  return digitalRead(PIN_OPTICAL) == LOW;
+}
+
+bool SafetyWatchdog::isReservoirFull() {
+  // Active LOW with pullup: LOW = float triggered = reservoir full
+  return digitalRead(PIN_FLOAT) == LOW;
+}
+
+// ============================================================================
+// EMERGENCY ACTIONS
+// ============================================================================
+
+void SafetyWatchdog::emergencyShutdown() {
+  Serial.println("[EMERGENCY] >>> SHUTDOWN: All outputs OFF <<<");
+  for (uint8_t i = 0; i < NUM_OUTPUT_PINS; i++) {
+    digitalWrite(OUTPUT_PINS[i], LOW);
+  }
+  _emergency = true;
+  _emergencyDraining = false;
+}
+
+void SafetyWatchdog::emergencyDrain() {
+  Serial.println("[EMERGENCY] >>> OVERFLOW DRAIN ACTIVATED <<<");
+
+  // Shut everything off first
+  for (uint8_t i = 0; i < NUM_OUTPUT_PINS; i++) {
+    digitalWrite(OUTPUT_PINS[i], LOW);
+  }
+
+  // Open drain valve
+  digitalWrite(PIN_DRAIN, HIGH);
+
+  _emergency = true;
+  _emergencyDraining = true;
+  _emergencyDrainStart = millis();
+}
+
+// ============================================================================
+// MAINTENANCE MODE
+// ============================================================================
+
+void SafetyWatchdog::enterMaintenance() {
+  Serial.println("[Safety] Maintenance mode ENABLED (30 min timer).");
+  _maintenance = true;
+  _maintenanceStart = millis();
+}
+
+void SafetyWatchdog::exitMaintenance() {
+  Serial.println("[Safety] Maintenance mode DISABLED.");
+  _maintenance = false;
+}
+
+// ============================================================================
+// UPDATE (called every loop)
+// ============================================================================
+
+void SafetyWatchdog::update() {
+  unsigned long now = millis();
+
+  // Rate-limit safety checks
+  if ((now - _lastCheckMs) < SAFETY_CHECK_INTERVAL_MS)
+    return;
+  _lastCheckMs = now;
+
+  // -- Maintenance auto-expire --
+  if (_maintenance && (now - _maintenanceStart >= MAINTENANCE_DURATION_MS)) {
+    Serial.println("[Safety] Maintenance timer expired.");
+    exitMaintenance();
+  }
+
+  // Skip sensor-based safety during maintenance
+  if (_maintenance)
+    return;
+
+  // -- Emergency drain timeout --
+  _updateEmergencyDrain();
+
+  // -- Optical sensor: immediate stop if water at max --
+  if (isOpticalHigh()) {
+    // Always stop refill/solenoid when optical is triggered
+    digitalWrite(PIN_REFILL, LOW);
+    digitalWrite(PIN_SOLENOID, LOW);
+    _overflowFlag = true;
+  } else {
+    _overflowFlag = false;
+  }
+
+  // -- Ultrasonic overflow check --
+  _checkOverflow();
+}
+
+void SafetyWatchdog::_checkOverflow() {
+  float dist = readUltrasonic();
+  if (dist < 0)
+    return; // No valid reading
+
+  // Lower distance = higher water level
+  if (dist < LEVEL_SAFETY_MIN_CM && !_emergencyDraining) {
+    Serial.printf(
+        "[Safety] OVERFLOW! Distance=%.1f cm < %.1f cm safety limit\n", dist,
+        LEVEL_SAFETY_MIN_CM);
+    emergencyDrain();
+  }
+}
+
+void SafetyWatchdog::_updateEmergencyDrain() {
+  if (!_emergencyDraining)
+    return;
+
+  unsigned long elapsed = millis() - _emergencyDrainStart;
+
+  // Check if water is now at safe level
+  float dist = _lastDistance;
+  if (dist > LEVEL_SAFETY_MIN_CM + 5.0f) {
+    Serial.println("[Safety] Emergency drain: water at safe level. Stopping.");
+    digitalWrite(PIN_DRAIN, LOW);
+    _emergencyDraining = false;
+    _emergency = false;
+    return;
+  }
+
+  // Timeout — stop even if water isn't safe (prevent running forever)
+  if (elapsed >= TIMEOUT_EMERGENCY_MS) {
+    Serial.println("[EMERGENCY] Drain timeout reached. FULL SHUTDOWN.");
+    emergencyShutdown();
+  }
+}
+
+float SafetyWatchdog::_medianOfFive(float *arr) {
+  std::sort(arr, arr + 5);
+  return arr[2];
+}
