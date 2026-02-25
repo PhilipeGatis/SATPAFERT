@@ -116,11 +116,16 @@ body.ap-mode #emergencyBanner{display:none !important}
 
   <!-- WiFi Config -->
   <div class="card" id="wifiCard">
-    <h2>📶 Configurar WiFi</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0">📶 Configurar WiFi</h2>
+      <button class="btn btn-ok" style="width:auto;padding:4px 8px;font-size:0.8rem;margin:0" onclick="scanWiFi(this)" id="btnScan">↻ Buscar</button>
+    </div>
     <form onsubmit="saveWiFi(event)">
       <div class="input-row" style="margin-bottom:8px">
         <span class="label" style="width:50px">SSID</span>
-        <input type="text" id="wifiSsid" required style="flex-grow:1">
+        <select id="wifiSsid" required style="flex-grow:1;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:8px;border-radius:4px">
+          <option value="" disabled selected>Clique em Buscar...</option>
+        </select>
       </div>
       <div class="input-row" style="margin-bottom:8px">
         <span class="label" style="width:50px">Senha</span>
@@ -196,6 +201,36 @@ async function saveWiFi(e) {
     if(r.ok) alert('WiFi configurado! O sistema reiniciará para conectar.');
     else alert('Erro ao salvar WiFi.');
   } catch(err) { alert('Erro de comunicação.'); }
+}
+
+async function scanWiFi(btn) {
+  btn.textContent = '⏱ Buscando...';
+  btn.disabled = true;
+  
+  const poll = async () => {
+    try {
+      const r = await fetch('/api/wifi/scan');
+      if (r.status === 202) {
+        setTimeout(poll, 1500); // Wait and poll again
+        return;
+      }
+      if (r.ok) {
+        const d = await r.json();
+        const sel = $('wifiSsid');
+        sel.innerHTML = '<option value="" disabled selected>Selecione uma rede...</option>';
+        if(d.networks.length === 0) sel.innerHTML = '<option value="" disabled>Nenhuma rede encontrada</option>';
+        d.networks.forEach(n => {
+          const opt = document.createElement('option');
+          opt.value = n.ssid;
+          opt.textContent = `${n.ssid} (${n.rssi}dBm)`;
+          sel.appendChild(opt);
+        });
+      }
+    } catch(err) { alert('Erro ao buscar redes.'); }
+    btn.textContent = '↻ Buscar';
+    btn.disabled = false;
+  };
+  poll();
 }
 
 function setSchedule(type) {

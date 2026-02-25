@@ -195,6 +195,33 @@ void WebManager::_setupRoutes() {
                request->send(200, "application/json", "{\"ok\":true}");
              });
 
+  // ---- GET /api/wifi/scan ----
+  _server.on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest *request) {
+    int n = WiFi.scanComplete();
+    if (n == -2) {
+      // Scan hasn't started yet, trigger it
+      WiFi.scanNetworks(true); // async scan
+      request->send(202, "application/json", "{\"status\":\"scanning\"}");
+    } else if (n == -1) {
+      // Still scanning
+      request->send(202, "application/json", "{\"status\":\"scanning\"}");
+    } else if (n == 0) {
+      request->send(200, "application/json", "{\"networks\":[]}");
+      WiFi.scanDelete();
+    } else {
+      String json = "{\"networks\":[";
+      for (int i = 0; i < n; ++i) {
+        if (i > 0)
+          json += ",";
+        json += "{\"ssid\":\"" + WiFi.SSID(i) +
+                "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+      }
+      json += "]}";
+      request->send(200, "application/json", json);
+      WiFi.scanDelete();
+    }
+  });
+
   // ---- POST /api/wifi (Form Data: ssid, pass) ----
   _server.on("/api/wifi", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("ssid", true) && request->hasParam("pass", true)) {

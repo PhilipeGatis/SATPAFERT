@@ -80,7 +80,36 @@ void setup() {
     Serial.print("[WiFi] IP: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println(" FAILED — starting AP mode");
+    Serial.println(" FAILED!");
+    Serial.print("[WiFi] Error Code: ");
+    switch (WiFi.status()) {
+    case WL_NO_SHIELD:
+      Serial.println("WL_NO_SHIELD");
+      break;
+    case WL_IDLE_STATUS:
+      Serial.println("WL_IDLE_STATUS");
+      break;
+    case WL_NO_SSID_AVAIL:
+      Serial.println("WL_NO_SSID_AVAIL");
+      break;
+    case WL_SCAN_COMPLETED:
+      Serial.println("WL_SCAN_COMPLETED");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.println("WL_CONNECT_FAILED");
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.println("WL_CONNECTION_LOST");
+      break;
+    case WL_DISCONNECTED:
+      Serial.println("WL_DISCONNECTED");
+      break;
+    default:
+      Serial.printf("UNKNOWN (%d)\n", WiFi.status());
+      break;
+    }
+
+    Serial.println("[WiFi] Starting AP mode fallback");
     WiFi.mode(WIFI_AP_STA); // AP + keep trying STA in background
     WiFi.softAP(AP_SSID, AP_PASSWORD);
     Serial.printf("[WiFi] AP started: SSID='%s' PASS='%s'\n", AP_SSID,
