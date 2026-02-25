@@ -77,18 +77,29 @@ export default function HomeTab({ status }: { status: AQStatus | null }) {
                 <h2 className="mb-4 text-base font-medium tracking-wide text-text/90 uppercase">Sensores e Segurança</h2>
 
                 <div className="mb-5">
-                    <div className="mb-2 flex justify-between text-sm font-medium">
-                        <span className="text-muted tracking-wide">Nível de Água</span>
-                        <span className={`font-mono text-lg ${status?.waterLevel && status.waterLevel < 5 ? 'text-danger' : status?.waterLevel && status.waterLevel < 10 ? 'text-warn' : 'text-accent2'}`}>
-                            {status?.waterLevel?.toFixed(1) || '--'} cm
-                        </span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
-                        <div
-                            className={`h-full transition-all duration-500 ease-out ${status?.waterLevel && status.waterLevel < 5 ? 'bg-danger' : status?.waterLevel && status.waterLevel < 10 ? 'bg-warn' : 'bg-accent2'}`}
-                            style={{ width: `${Math.min(100, Math.max(0, 100 - (status?.waterLevel || 0) * 5))}%` }}
-                        />
-                    </div>
+                    {(() => {
+                        const wl = status?.waterLevel || 0;
+                        const refCm = status?.aqHeight || 20;
+                        const pct = status?.optical ? 100 : Math.max(0, Math.min(100, Math.round((1 - wl / refCm) * 100)));
+                        const color = pct < 25 ? 'text-danger' : pct < 50 ? 'text-warn' : 'text-accent2';
+                        const barColor = pct < 25 ? 'bg-danger' : pct < 50 ? 'bg-warn' : 'bg-accent2';
+                        return (
+                            <>
+                                <div className="mb-2 flex justify-between text-sm font-medium">
+                                    <span className="text-muted tracking-wide">Nível de Água</span>
+                                    <span className={`font-mono text-lg ${color}`}>
+                                        {status ? `${pct}%` : '--'}
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
+                                    <div
+                                        className={`h-full transition-all duration-500 ease-out ${barColor}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 <div className="flex flex-col">
@@ -105,6 +116,56 @@ export default function HomeTab({ status }: { status: AQStatus | null }) {
                     <Badge label="Estado TPA" on={status?.tpaState !== 'IDLE'} texts={[status?.tpaState || '', 'IDLE']} />
                     <Badge label="Modo Manutenção" on={status?.maintenance} texts={['ATIVO', 'INATIVO']} />
                 </div>
+            </div>
+
+            {/* TPA SCHEDULE SUMMARY */}
+            <div className="rounded-2xl bg-card p-5 shadow-md">
+                <h2 className="mb-4 text-base font-medium tracking-wide text-text/90 uppercase">Agendamento TPA</h2>
+                {status && !status.tpaConfigReady && (
+                    <div className="rounded-lg bg-warn/10 border border-warn/30 px-4 py-3 mb-4">
+                        <span className="text-xs font-bold text-warn">⚠ Configuração incompleta — TPA desativada</span>
+                    </div>
+                )}
+                {status?.tpaInterval ? (() => {
+                    const lastRunDate = status.tpaLastRun ? new Date(status.tpaLastRun * 1000) : null;
+                    const nextRunDate = lastRunDate
+                        ? new Date(lastRunDate.getTime() + status.tpaInterval * 86400000)
+                        : null;
+                    const now = new Date();
+                    const daysUntil = nextRunDate ? Math.ceil((nextRunDate.getTime() - now.getTime()) / 86400000) : null;
+                    const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                    return (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between border-b border-border/50 py-2">
+                                <span className="text-sm text-muted">Volume</span>
+                                <span className="font-mono text-sm font-bold text-accent">
+                                    {status.tpaPercent}%{status.aquariumVolume ? ` (${(status.aquariumVolume * status.tpaPercent / 100).toFixed(1)} L)` : ''}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between border-b border-border/50 py-2">
+                                <span className="text-sm text-muted">Intervalo</span>
+                                <span className="font-mono text-sm font-bold text-text">a cada {status.tpaInterval} dia{status.tpaInterval > 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="flex items-center justify-between border-b border-border/50 py-2">
+                                <span className="text-sm text-muted">Horário</span>
+                                <span className="font-mono text-sm font-bold text-text">{String(status.tpaHour).padStart(2, '0')}:{String(status.tpaMinute).padStart(2, '0')}</span>
+                            </div>
+                            <div className="flex items-center justify-between border-b border-border/50 py-2">
+                                <span className="text-sm text-muted">Última execução</span>
+                                <span className="font-mono text-xs text-muted">{lastRunDate ? formatDate(lastRunDate) : 'nunca'}</span>
+                            </div>
+                            <div className="flex items-center justify-between py-2">
+                                <span className="text-sm text-muted">Próxima TPA</span>
+                                <span className={`font-mono text-sm font-bold ${daysUntil !== null && daysUntil <= 1 ? 'text-warn' : 'text-accent2'}`}>
+                                    {nextRunDate ? `${formatDate(nextRunDate)} (${daysUntil === 0 ? 'HOJE' : daysUntil === 1 ? 'amanhã' : `em ${daysUntil} dias`})` : '--'}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })() : (
+                    <div className="text-xs text-muted italic">Nenhum agendamento configurado.</div>
+                )}
             </div>
 
             {/* FERTILIZERS WEEKLY VIEW */}

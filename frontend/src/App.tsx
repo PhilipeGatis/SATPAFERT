@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import HomeTab from './components/HomeTab';
-import AgendaTab from './components/AgendaTab';
+import TPATab from './components/TPATab';
 import FertsTab from './components/FertsTab';
 import ConfigTab from './components/ConfigTab';
 
@@ -14,9 +14,23 @@ export type AQStatus = {
   maintenance: boolean;
   tpaState: string;
   canister: boolean;
-  tpaDay: number;
+  tpaInterval: number;
   tpaHour: number;
   tpaMinute: number;
+  tpaLastRun: number;
+  tpaPercent: number;
+  tpaConfigReady: boolean;
+  primeMl: number;
+  aqHeight: number;
+  aqLength: number;
+  aqWidth: number;
+  aquariumVolume: number;
+  litersPerCm: number;
+  drainFlowRate: number;
+  refillFlowRate: number;
+  primeRatio: number;
+  reservoirVolume: number;
+  reservoirSafetyML: number;
   stocks: Array<{
     name: string;
     stock: number;
@@ -42,7 +56,7 @@ export const api = (method: string, url: string, body?: any) => {
 };
 
 function App() {
-  const [tab, setTab] = useState<'home' | 'agenda' | 'ferts' | 'config'>('home');
+  const [tab, setTab] = useState<'home' | 'tpa' | 'ferts' | 'config'>('home');
   const [status, setStatus] = useState<AQStatus | null>(null);
   const [wifiDot, setWifiDot] = useState(false);
 
@@ -106,16 +120,16 @@ function App() {
       {/* Tabs Content */}
       <div className="mx-auto grid max-w-[800px] grid-cols-1 gap-3 p-3 sm:grid-cols-2">
         {tab === 'home' && <HomeTab status={status} />}
-        {tab === 'agenda' && <AgendaTab status={status} />}
+        {tab === 'tpa' && <TPATab status={status} />}
         {tab === 'ferts' && <FertsTab status={status} />}
-        {tab === 'config' && <ConfigTab />}
+        {tab === 'config' && <ConfigTab status={status} />}
       </div>
 
       {/* Bottom Navigation */}
       <nav className="tabs fixed bottom-0 left-0 right-0 z-20 flex justify-around bg-card p-2 pb-6 shadow-[0_-2px_10px_rgba(0,0,0,0.5)]">
         {[
           { id: 'home', icon: '🏠', label: 'Início' },
-          { id: 'agenda', icon: '📅', label: 'Agenda' },
+          { id: 'tpa', icon: '💧', label: 'TPA' },
           { id: 'ferts', icon: '🧪', label: 'Ferts' },
           { id: 'config', icon: '⚙️', label: 'Config' },
         ].map((t) => (

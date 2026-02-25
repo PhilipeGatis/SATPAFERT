@@ -23,8 +23,11 @@ WebManager::WebManager()
     :
 #endif
       _time(nullptr), _water(nullptr), _fert(nullptr), _safety(nullptr),
-      _tpaDay(DEFAULT_TPA_DAY), _tpaHour(DEFAULT_TPA_HOUR),
-      _tpaMinute(DEFAULT_TPA_MINUTE), _lastTelemetryMs(0), _lastSSEMs(0) {
+      _tpaInterval(7), _tpaHour(10), _tpaMinute(0), _tpaLastRun(0),
+      _tpaPercent(20), _primeML(DEFAULT_PRIME_ML), _aqHeight(0), _aqLength(0),
+      _aqWidth(0), _drainFlowRate(0), _refillFlowRate(0), _primeRatio(0),
+      _reservoirVolume(0), _reservoirSafetyML(0), _lastTelemetryMs(0),
+      _lastSSEMs(0) {
 }
 
 // ============================================================================
@@ -40,6 +43,10 @@ void WebManager::begin(TimeManager *time, WaterManager *water,
 
   _loadParams();
 
+  if (_water) {
+    _water->setPrimeML(_primeML);
+  }
+
 #ifdef USE_WEBSERVER
   _setupRoutes();
   _server.begin();
@@ -51,8 +58,13 @@ void WebManager::begin(TimeManager *time, WaterManager *water,
 #endif
 
   _printHelp();
-  Serial.printf("[Web] TPA Schedule: day%d %02d:%02d\n", _tpaDay, _tpaHour,
-                _tpaMinute);
+  Serial.printf("[Web] TPA Schedule: Every %d days at %02d:%02d\n",
+                _tpaInterval, _tpaHour, _tpaMinute);
+}
+
+void WebManager::setTpaLastRun(uint32_t epoch) {
+  _tpaLastRun = epoch;
+  _saveParams();
 }
 
 // ============================================================================
@@ -110,10 +122,26 @@ String WebManager::_buildStatusJSON() {
   }
 
   // Schedule
-  json += "\"tpaDay\":" + String(_tpaDay) + ",";
+  json += "\"tpaInterval\":" + String(_tpaInterval) + ",";
   json += "\"tpaHour\":" + String(_tpaHour) + ",";
   json += "\"tpaMinute\":" + String(_tpaMinute) + ",";
-
+  json += "\"tpaPercent\":" + String(_tpaPercent) + ",";
+  json += "\"primeMl\":" + String(_primeML, 1) + ",";
+  uint32_t aqVol = (uint32_t)_aqHeight * _aqLength * _aqWidth / 1000;
+  float lPerCm = (float)_aqLength * _aqWidth / 1000.0;
+  json += "\"aqHeight\":" + String(_aqHeight) + ",";
+  json += "\"aqLength\":" + String(_aqLength) + ",";
+  json += "\"aqWidth\":" + String(_aqWidth) + ",";
+  json += "\"aquariumVolume\":" + String(aqVol) + ",";
+  json += "\"litersPerCm\":" + String(lPerCm, 2) + ",";
+  json += "\"drainFlowRate\":" + String(_drainFlowRate, 2) + ",";
+  json += "\"refillFlowRate\":" + String(_refillFlowRate, 2) + ",";
+  json += "\"primeRatio\":" + String(_primeRatio, 4) + ",";
+  json += "\"reservoirVolume\":" + String(_reservoirVolume) + ",";
+  json += "\"reservoirSafetyML\":" + String(_reservoirSafetyML, 0) + ",";
+  json += "\"tpaConfigReady\":";
+  json += (isTpaConfigReady() ? "true" : "false");
+  json += ",";
   // Stocks
   json += "\"stocks\":[";
   if (_fert) {
@@ -179,6 +207,145 @@ void WebManager::_setupRoutes() {
                Serial.println("[Web] TPA aborted via dashboard");
                request->send(200, "application/json", "{\"ok\":true}");
              });
+
+  // ---- POST /api/tpa/config (reservoir safety margin) ----
+  _server.on(
+      "/api/tpa/config", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        bool changed = false;
+
+        float s = _extractFloat(body, "reservoirSafetyML");
+        if (s >= 0) {
+          _reservoirSafetyML = s;
+          changed = true;
+        }
+
+        if (changed) {
+          _saveParams();
+          Serial.printf("[Web] Reservoir safety margin: %.0f mL\n",
+                        _reservoirSafetyML);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/tpa/pump (Manual Drain/Refill Trigger) ----
+  _server.on(
+      "/api/tpa/pump", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        String pStr = _extractString(body, "pump");
+        int st = _extractInt(body, "state");
+
+        if (pStr == "drain") {
+          digitalWrite(PIN_DRAIN, st == 1 ? HIGH : LOW);
+        } else if (pStr == "refill") {
+          digitalWrite(PIN_REFILL, st == 1 ? HIGH : LOW);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/config/aquarium (JSON body) ----
+  _server.on(
+      "/api/config/aquarium", HTTP_POST, [](AsyncWebServerRequest *request) {},
+      NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        bool changed = false;
+
+        int h = _extractInt(body, "aqHeight");
+        if (h > 0) {
+          _aqHeight = h;
+          changed = true;
+        }
+        int l = _extractInt(body, "aqLength");
+        if (l > 0) {
+          _aqLength = l;
+          changed = true;
+        }
+        int w = _extractInt(body, "aqWidth");
+        if (w > 0) {
+          _aqWidth = w;
+          changed = true;
+        }
+        float ratio = _extractFloat(body, "primeRatio");
+        if (ratio >= 0) {
+          _primeRatio = ratio;
+          changed = true;
+        }
+        int rv = _extractInt(body, "reservoirVolume");
+        if (rv >= 0) {
+          _reservoirVolume = rv;
+          changed = true;
+        }
+
+        if (changed) {
+          // Auto-calculate primeML from reservoirVolume × ratio
+          if (_reservoirVolume > 0 && _primeRatio > 0) {
+            _primeML = _reservoirVolume * _primeRatio;
+            if (_water)
+              _water->setPrimeML(_primeML);
+          }
+          _saveParams();
+          uint32_t vol = (uint32_t)_aqHeight * _aqLength * _aqWidth / 1000;
+          Serial.printf("[Web] Aquarium dims: %dx%dx%d cm = %lu L\n", _aqHeight,
+                        _aqLength, _aqWidth, vol);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/tpa/run3s (JSON body: {"pump": "drain" | "refill"}) ----
+  _server.on(
+      "/api/tpa/run3s", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        String pStr = _extractString(body, "pump");
+        uint8_t pin = 0;
+        if (pStr == "drain")
+          pin = PIN_DRAIN;
+        else if (pStr == "refill")
+          pin = PIN_REFILL;
+
+        if (pin > 0) {
+          digitalWrite(pin, HIGH);
+          unsigned long start = millis();
+          while ((millis() - start) < 3000) {
+            delay(10);
+          }
+          digitalWrite(pin, LOW);
+          Serial.printf("[Web] %s pump ran for 3s\n", pStr.c_str());
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/tpa/calibrate (JSON: {"pump":"drain"|"refill","ml":150}) --
+  _server.on(
+      "/api/tpa/calibrate", HTTP_POST, [](AsyncWebServerRequest *request) {},
+      NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        String pStr = _extractString(body, "pump");
+        float ml = _extractFloat(body, "ml");
+        if (ml > 0.1f) {
+          float rate = ml / 3.0f;
+          if (pStr == "drain") {
+            _drainFlowRate = rate;
+            Serial.printf("[Web] Drain flow rate calibrated: %.2f mL/s\n",
+                          rate);
+          } else if (pStr == "refill") {
+            _refillFlowRate = rate;
+            Serial.printf("[Web] Refill flow rate calibrated: %.2f mL/s\n",
+                          rate);
+          }
+          _saveParams();
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
 
   // ---- POST /api/maintenance/toggle ----
   _server.on("/api/maintenance/toggle", HTTP_POST,
@@ -262,28 +429,33 @@ void WebManager::_setupRoutes() {
              size_t index, size_t total) {
         String body = String((char *)data).substring(0, len);
         bool changed = false;
-        int val;
 
-        val = _extractInt(body, "tpaDay");
-        if (val >= 0 && val <= 6) {
-          _tpaDay = val;
+        int inv = _extractInt(body, "tpaInterval");
+        if (inv >= 0) {
+          _tpaInterval = inv;
           changed = true;
         }
-        val = _extractInt(body, "tpaHour");
-        if (val >= 0 && val <= 23) {
-          _tpaHour = val;
+        int hh = _extractInt(body, "tpaHour");
+        if (hh >= 0 && hh <= 23) {
+          _tpaHour = hh;
           changed = true;
         }
-        val = _extractInt(body, "tpaMinute");
-        if (val >= 0 && val <= 59) {
-          _tpaMinute = val;
+        int mm = _extractInt(body, "tpaMinute");
+        if (mm >= 0 && mm <= 59) {
+          _tpaMinute = mm;
+          changed = true;
+        }
+        int pct = _extractInt(body, "tpaPercent");
+        if (pct > 0 && pct <= 100) {
+          _tpaPercent = pct;
           changed = true;
         }
 
         if (changed) {
           _saveParams();
-          Serial.printf("[Web] TPA Schedule updated: day%d %02d:%02d\n",
-                        _tpaDay, _tpaHour, _tpaMinute);
+          Serial.printf(
+              "[Web] TPA Schedule updated: Every %d days at %02d:%02d\n",
+              _tpaInterval, _tpaHour, _tpaMinute);
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
@@ -534,17 +706,44 @@ void WebManager::_updateTelemetry() {
 
 void WebManager::_loadParams() {
   _prefs.begin("aqua", true);
-  _tpaDay = _prefs.getUChar("tpaD", DEFAULT_TPA_DAY);
-  _tpaHour = _prefs.getUChar("tpaH", DEFAULT_TPA_HOUR);
-  _tpaMinute = _prefs.getUChar("tpaM", DEFAULT_TPA_MINUTE);
+  _tpaInterval = _prefs.getUShort("tpaInt", 7);
+  _tpaHour = _prefs.getUChar("tpaH", 10);
+  _tpaMinute = _prefs.getUChar("tpaM", 0);
+  _tpaLastRun = _prefs.getUInt("tpaRun", 0);
+  _tpaPercent = _prefs.getUChar("tpaPct", 20);
+  _primeML = _prefs.getFloat("tpaPr", DEFAULT_PRIME_ML);
+  _aqHeight = _prefs.getUShort("aqH", 0);
+  _aqLength = _prefs.getUShort("aqL", 0);
+  _aqWidth = _prefs.getUShort("aqW", 0);
+  _drainFlowRate = _prefs.getFloat("drFR", 0);
+  _refillFlowRate = _prefs.getFloat("rfFR", 0);
+  _primeRatio = _prefs.getFloat("pRat", 0);
+  _reservoirVolume = _prefs.getUShort("resVol", 0);
+  _reservoirSafetyML = _prefs.getFloat("resSf", 0);
   _prefs.end();
+
+  // Auto-calculate primeML from reservoirVolume × ratio if both are set
+  if (_reservoirVolume > 0 && _primeRatio > 0) {
+    _primeML = _reservoirVolume * _primeRatio;
+  }
 }
 
 void WebManager::_saveParams() {
   _prefs.begin("aqua", false);
-  _prefs.putUChar("tpaD", _tpaDay);
+  _prefs.putUShort("tpaInt", _tpaInterval);
   _prefs.putUChar("tpaH", _tpaHour);
   _prefs.putUChar("tpaM", _tpaMinute);
+  _prefs.putUInt("tpaRun", _tpaLastRun);
+  _prefs.putUChar("tpaPct", _tpaPercent);
+  _prefs.putFloat("tpaPr", _primeML);
+  _prefs.putUShort("aqH", _aqHeight);
+  _prefs.putUShort("aqL", _aqLength);
+  _prefs.putUShort("aqW", _aqWidth);
+  _prefs.putFloat("drFR", _drainFlowRate);
+  _prefs.putFloat("rfFR", _refillFlowRate);
+  _prefs.putFloat("pRat", _primeRatio);
+  _prefs.putUShort("resVol", _reservoirVolume);
+  _prefs.putFloat("resSf", _reservoirSafetyML);
   _prefs.end();
 }
 
@@ -584,16 +783,12 @@ void WebManager::processSerialCommands() {
   } else if (cmd.startsWith("fert_time ")) {
     Serial.println("[CMD] fert_time is obsolete. Use individual channel "
                    "scheduling via web.");
-  } else if (cmd.startsWith("tpa_time ")) {
-    int d = cmd.substring(9, 10).toInt();
-    int h = cmd.substring(11, 13).toInt();
-    int m = cmd.substring(14, 16).toInt();
-    if (d >= 0 && d <= 6 && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-      _tpaDay = d;
-      _tpaHour = h;
-      _tpaMinute = m;
+  } else if (cmd.startsWith("tpa_interval ")) {
+    int inv = cmd.substring(13).toInt();
+    if (inv >= 0) {
+      _tpaInterval = inv;
       _saveParams();
-      Serial.printf("[CMD] TPA schedule set to day %d, %02d:%02d\n", d, h, m);
+      Serial.printf("[CMD] TPA schedule set to every %d days\n", inv);
     }
   } else if (cmd.startsWith("dose ")) {
     Serial.println(
@@ -648,7 +843,7 @@ void WebManager::_printHelp() {
   Serial.println("  abort             - Abort current TPA");
   Serial.println("  maint             - Toggle maintenance mode (30 min)");
   Serial.println("  fert_time HH:MM  - Set fertilization schedule");
-  Serial.println("  tpa_time D HH:MM - Set TPA schedule (D=0-6, 0=Sun)");
+  Serial.println("  tpa_interval IN  - Set TPA schedule (days)");
   Serial.println("  dose CH ML       - Set dose for CH 1-4 (ml)");
   Serial.println("  reset_stock CH ML - Reset stock CH 1-5 (5=prime)");
   Serial.println("  set_drain CM     - Set drain target (cm)");
@@ -674,8 +869,8 @@ void WebManager::_printStatus() {
     Serial.printf("TPA: %s | Canister: %s\n", _water->getStateName(),
                   _water->isCanisterOn() ? "ON" : "OFF");
   }
-  Serial.printf("Schedule: TPA=day%d %02d:%02d\n", _tpaDay, _tpaHour,
-                _tpaMinute);
+  Serial.printf("Schedule: TPA=Every %d days at %02d:%02d\n", _tpaInterval,
+                _tpaHour, _tpaMinute);
   if (_fert) {
     for (uint8_t i = 0; i < NUM_FERTS; i++) {
       Serial.printf("CH%d: dose[Sun]=%.1f ml, stock=%.0f ml, rate=%.2f mL/s\n",

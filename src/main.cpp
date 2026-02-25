@@ -261,20 +261,60 @@ void loop() {
     fertMgr.update(now);
 
     // --- TPA schedule ---
-    uint8_t tpaD = webMgr.getTPADay();
-    uint8_t tpaH = webMgr.getTPAHour();
-    uint8_t tpaM = webMgr.getTPAMinute();
-
     if (currentMinute != lastTPAMinute) {
       tpaDoneThisMinute = false;
       lastTPAMinute = currentMinute;
-    }
 
-    if (!tpaDoneThisMinute && !waterMgr.isRunning()) {
-      if (timeMgr.isWeeklyScheduleDay(tpaD, tpaH, tpaM)) {
-        Serial.println("[Main] TPA schedule triggered!");
-        waterMgr.startTPA();
-        tpaDoneThisMinute = true;
+      // Evaluate interval-based execution
+      bool isTPADay = false;
+      uint16_t interval = webMgr.getTpaInterval();
+      if (interval > 0) {
+        unsigned long lastRun = webMgr.getTpaLastRun();
+        unsigned long nowEpoch = timeMgr.now().unixtime();
+
+        // 43200 seconds = 12 hours. We grant a 12h leeway so that DST shifts
+        // or small clock drifts don't cause it to miss a day. The precise
+        // trigger happens below by strictly matching hour and minute.
+        if (lastRun == 0 ||
+            nowEpoch >= (lastRun + (interval * 86400) - 43200)) {
+          isTPADay = true;
+        }
+      }
+
+      // Determine if a TPA should start (evaluated only once per minute)
+      if (!waterMgr.isRunning() && isTPADay) {
+        if (timeMgr.isDailyScheduleTime(webMgr.getTpaHour(),
+                                        webMgr.getTpaMinute())) {
+          if (!webMgr.isTpaConfigReady()) {
+            Serial.println("[Main] TPA schedule triggered but config "
+                           "incomplete - skipping.");
+          } else {
+            // Compute dynamic drain/refill targets
+            float currentLevel = safety.readUltrasonic();
+            float lPerCm = webMgr.getLitersPerCm();
+            float aqVol = (float)webMgr.getAquariumVolume();
+            float drainLiters = aqVol * webMgr.getTpaPercent() / 100.0f;
+
+            // Cap by reservoir available volume (minus safety margin)
+            float resAvail = (float)webMgr.getReservoirVolume() -
+                             webMgr.getReservoirSafetyML() / 1000.0f;
+            if (resAvail > 0 && drainLiters > resAvail) {
+              drainLiters = resAvail;
+              Serial.printf("[Main] TPA capped to %.1f L (reservoir limit)\n",
+                            drainLiters);
+            }
+
+            float cmToDrain = (lPerCm > 0) ? drainLiters / lPerCm : 0;
+            waterMgr.setDrainTargetCm(currentLevel + cmToDrain);
+            waterMgr.setRefillTargetCm(currentLevel);
+            Serial.printf(
+                "[Main] TPA: %.1f L = %.1f cm, drain to %.1f, refill to %.1f\n",
+                drainLiters, cmToDrain, currentLevel + cmToDrain, currentLevel);
+            waterMgr.startTPA();
+            webMgr.setTpaLastRun(timeMgr.now().unixtime());
+            tpaDoneThisMinute = true;
+          }
+        }
       }
     }
   }

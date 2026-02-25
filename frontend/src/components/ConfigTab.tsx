@@ -1,11 +1,16 @@
-import { useState } from 'react';
-import { api } from '../App';
+import { useState, useEffect } from 'react';
+import { api, type AQStatus } from '../App';
 
-export default function ConfigTab() {
+export default function ConfigTab({ status }: { status: AQStatus | null }) {
     const [ssid, setSsid] = useState('');
     const [pass, setPass] = useState('');
     const [networks, setNetworks] = useState<{ ssid: string; rssi: number }[]>([]);
     const [scanning, setScanning] = useState(false);
+    const [aqH, setAqH] = useState('');
+    const [aqL, setAqL] = useState('');
+    const [aqW, setAqW] = useState('');
+    const [primeRatio, setPrimeRatio] = useState('');
+    const [reservoirVolume, setReservoirVolume] = useState('');
 
     const handleScan = async () => {
         setScanning(true);
@@ -46,8 +51,101 @@ export default function ConfigTab() {
         }
     };
 
+    useEffect(() => {
+        if (status) {
+            if (!aqH && status.aqHeight) setAqH(status.aqHeight.toString());
+            if (!aqL && status.aqLength) setAqL(status.aqLength.toString());
+            if (!aqW && status.aqWidth) setAqW(status.aqWidth.toString());
+            if (!primeRatio && status.primeRatio !== undefined) setPrimeRatio(status.primeRatio.toString());
+            if (!reservoirVolume && status.reservoirVolume !== undefined) setReservoirVolume(status.reservoirVolume.toString());
+        }
+    }, [status]);
+
+    const h = parseInt(aqH) || 0;
+    const l = parseInt(aqL) || 0;
+    const w = parseInt(aqW) || 0;
+    const computedVolume = h * l * w / 1000;
+    const computedLPerCm = l * w / 1000;
+    const computedPrime = (parseFloat(reservoirVolume) || 0) * (parseFloat(primeRatio) || 0);
+
     return (
         <div className="flex flex-col gap-4">
+            {/* AQUARIUM CONFIG CARD */}
+            <div className="rounded-2xl bg-card p-5 shadow-md">
+                <h2 className="mb-4 text-base font-medium tracking-wide text-text/90 uppercase">Configuração do Aquário</h2>
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-muted uppercase tracking-wider">Dimensões do Aquário (cm)</label>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <input type="number" min="0" max="999" step="1" placeholder="Altura"
+                                    className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                                    value={aqH} onChange={e => setAqH(e.target.value)} />
+                                <span className="text-[9px] text-muted">Altura (A)</span>
+                            </div>
+                            <span className="self-center text-muted text-lg">×</span>
+                            <div className="flex-1">
+                                <input type="number" min="0" max="999" step="1" placeholder="Compr."
+                                    className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                                    value={aqL} onChange={e => setAqL(e.target.value)} />
+                                <span className="text-[9px] text-muted">Comprimento (C)</span>
+                            </div>
+                            <span className="self-center text-muted text-lg">×</span>
+                            <div className="flex-1">
+                                <input type="number" min="0" max="999" step="1" placeholder="Largura"
+                                    className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                                    value={aqW} onChange={e => setAqW(e.target.value)} />
+                                <span className="text-[9px] text-muted">Largura (L)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-lg bg-accent/10 px-4 py-3 flex flex-col gap-1">
+                        <div>
+                            <span className="text-xs text-muted">Volume calculado: </span>
+                            <strong className="text-accent text-sm">{computedVolume > 0 ? `${computedVolume.toFixed(1)} L` : '--'}</strong>
+                        </div>
+                        <div>
+                            <span className="text-xs text-muted">Litros por cm: </span>
+                            <strong className="text-accent2 text-sm">{computedLPerCm > 0 ? `${computedLPerCm.toFixed(2)} L/cm` : '--'}</strong>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-muted uppercase tracking-wider">Proporção de Prime (mL por Litro)</label>
+                        <input
+                            type="number" min="0" max="10" step="0.001" placeholder="Ex: 0.05"
+                            className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                            value={primeRatio} onChange={e => setPrimeRatio(e.target.value)}
+                        />
+                        <span className="text-[10px] text-muted italic mt-1">Conforme recomendação do fabricante (Ex: Seachem Prime = 0.05 mL/L)</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-muted uppercase tracking-wider">Volume do Reservatório de Tratamento (Litros)</label>
+                        <input
+                            type="number" min="0" max="9999" step="1" placeholder="Ex: 20"
+                            className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                            value={reservoirVolume} onChange={e => setReservoirVolume(e.target.value)}
+                        />
+                        <span className="text-[10px] text-muted italic mt-1">Água tratada com Prime antes de repor no aquário</span>
+                    </div>
+                    <div className="rounded-lg bg-accent/10 px-4 py-3">
+                        <span className="text-xs text-muted">Dose de Prime calculada (reservatório): </span>
+                        <strong className="text-accent text-sm">{computedPrime > 0 ? `${computedPrime.toFixed(1)} mL` : 'Configure volume do reservatório e proporção'}</strong>
+                    </div>
+                    <button
+                        onClick={() => api('POST', '/api/config/aquarium', {
+                            aqHeight: parseInt(aqH) || 0,
+                            aqLength: parseInt(aqL) || 0,
+                            aqWidth: parseInt(aqW) || 0,
+                            primeRatio: parseFloat(primeRatio) || 0,
+                            reservoirVolume: parseInt(reservoirVolume) || 0
+                        })}
+                        className="mt-1 rounded-full bg-accent2 px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-black shadow-md transition-all hover:bg-teal-300 active:scale-95"
+                    >
+                        Salvar Configuração
+                    </button>
+                </div>
+            </div>
+
             <div className="rounded-2xl bg-card p-5 shadow-md">
                 <h2 className="mb-4 text-base font-medium tracking-wide text-text/90 uppercase">Configuração de Rede</h2>
 

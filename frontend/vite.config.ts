@@ -22,8 +22,16 @@ export default defineConfig({
       output: {
         // Flat file output to simplify ESP32 serving (no nested subfolders)
         entryFileNames: `assets/[name].js`,
-        chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name].[ext]`,
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('react-dom')) return 'vendor-react-dom';
+            if (id.includes('react/')) return 'vendor-react-core';
+            return 'vendor';
+          }
+        }
       }
     }
   }
