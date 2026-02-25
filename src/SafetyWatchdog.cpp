@@ -2,9 +2,10 @@
 #include <algorithm> // std::sort
 
 SafetyWatchdog::SafetyWatchdog()
-    : _lastDistance(-1), _emergency(false), _overflowFlag(false),
-      _maintenance(false), _maintenanceStart(0), _lastCheckMs(0),
-      _emergencyDraining(false), _emergencyDrainStart(0) {}
+    : _lastDistance(-1), _emergency(false), _sensorsConnected(false),
+      _ultrasonicFailCount(0), _overflowFlag(false), _maintenance(false),
+      _maintenanceStart(0), _lastCheckMs(0), _emergencyDraining(false),
+      _emergencyDrainStart(0) {}
 
 void SafetyWatchdog::begin() {
   // Ultrasonic
@@ -18,7 +19,11 @@ void SafetyWatchdog::begin() {
   // Float switch (active LOW, pulled up)
   pinMode(PIN_FLOAT, INPUT_PULLUP);
 
-  Serial.println("[Safety] Watchdog initialized.");
+  // Initial sensor probe — detect if ultrasonic is connected
+  readUltrasonic();
+
+  Serial.printf("[Safety] Watchdog initialized. Sensors: %s\n",
+                _sensorsConnected ? "CONNECTED" : "NOT CONNECTED");
 }
 
 // ============================================================================
@@ -51,8 +56,23 @@ float SafetyWatchdog::readUltrasonic() {
   }
 
   if (validCount == 0) {
-    Serial.println("[Safety] Ultrasonic: no valid readings!");
+    _ultrasonicFailCount++;
+    if (_ultrasonicFailCount >= 10 && _sensorsConnected) {
+      _sensorsConnected = false;
+      Serial.println(
+          "[Safety] Ultrasonic sensor disconnected — safety checks disabled.");
+    } else if (_ultrasonicFailCount < 10) {
+      Serial.println("[Safety] Ultrasonic: no valid readings!");
+    }
     return _lastDistance; // Return last known good value
+  }
+
+  // Sensor is working
+  _ultrasonicFailCount = 0;
+  if (!_sensorsConnected) {
+    _sensorsConnected = true;
+    Serial.println(
+        "[Safety] Ultrasonic sensor connected — safety checks enabled.");
   }
 
   // If we have enough samples, use median; otherwise use average
@@ -148,6 +168,12 @@ void SafetyWatchdog::update() {
   // Skip sensor-based safety during maintenance
   if (_maintenance)
     return;
+
+  // Skip sensor-based safety if sensors not connected
+  if (!_sensorsConnected) {
+    _overflowFlag = false;
+    return;
+  }
 
   // -- Emergency drain timeout --
   _updateEmergencyDrain();

@@ -29,6 +29,9 @@ public:
   /// Last valid ultrasonic reading (cm)
   float getLastDistance() const { return _lastDistance; }
 
+  /// True if ultrasonic sensor is producing valid readings
+  bool areSensorsConnected() const { return _sensorsConnected; }
+
   // ---- Emergency actions ----
 
   /// Immediately set ALL output pins LOW
@@ -54,6 +57,8 @@ public:
 private:
   float _lastDistance;
   bool _emergency;
+  bool _sensorsConnected;
+  uint8_t _ultrasonicFailCount;
   bool _overflowFlag;
 
   // Maintenance

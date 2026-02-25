@@ -206,6 +206,7 @@ void test_ultrasonic_no_reading_returns_last() {
 
 void test_optical_flag_set_on_update() {
   SafetyWatchdog sw;
+  mock_pulseIn_value = 1750; // Ensure sensor appears connected on begin()
   sw.begin();
 
   // Set ultrasonic to a safe distance (so overflow check doesn't trigger)
@@ -226,6 +227,7 @@ void test_optical_flag_set_on_update() {
 
 void test_no_overflow_when_optical_clear() {
   SafetyWatchdog sw;
+  mock_pulseIn_value = 1750; // Ensure sensor appears connected on begin()
   sw.begin();
 
   mock_pulseIn_value = 1750;

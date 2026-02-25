@@ -43,6 +43,10 @@ void WaterManager::startTPA() {
     Serial.println("[TPA] Already running, ignoring startTPA().");
     return;
   }
+  if (_safety && !_safety->areSensorsConnected()) {
+    Serial.println("[TPA] Cannot start: ultrasonic sensor not connected.");
+    return;
+  }
   if (_safety && _safety->isEmergency()) {
     Serial.println("[TPA] Cannot start: system in emergency state.");
     return;
