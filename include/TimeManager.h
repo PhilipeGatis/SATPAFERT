@@ -43,6 +43,7 @@ private:
   NTPClient _timeClient;
 
   bool _rtcConnected;
+  bool _ntpStarted;
   unsigned long _lastNtpSync;
 
   static constexpr long UTC_OFFSET_BRASILIA = -3 * 3600;

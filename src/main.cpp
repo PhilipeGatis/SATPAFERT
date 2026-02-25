@@ -51,10 +51,30 @@ void setup() {
   Serial.println("  v2.0.0 - Blynk IoT");
   Serial.println("==========================================\n");
 
-  // --- Step 3: Safety Watchdog (sensors) ---
+  // --- Step 3: WiFi (must be before NTP/Blynk) ---
+  Serial.print("[WiFi] Connecting");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  {
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(" OK!");
+    Serial.print("[WiFi] IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(" FAILED (will retry)");
+  }
+
+  // --- Step 4: Safety Watchdog (sensors) ---
   safety.begin();
 
-  // --- Step 4: Time Manager (RTC + NTP) ---
+  // --- Step 5: Time Manager (RTC + NTP — needs WiFi) ---
   timeMgr.begin();
 
   // --- Step 5: Fertilizer Manager (NVS state) ---

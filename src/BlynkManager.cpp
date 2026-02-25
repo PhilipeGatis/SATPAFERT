@@ -43,9 +43,10 @@ void BlynkManager::begin(TimeManager *time, WaterManager *water,
   _loadParams();
 
 #ifdef USE_BLYNK
-  Serial.println("[Blynk] Connecting to Blynk IoT...");
-  Blynk.begin(BLYNK_AUTH_TOKEN, WIFI_SSID, WIFI_PASSWORD);
-  Serial.println("[Blynk] Connected!");
+  // WiFi is already initialized in main.cpp setup()
+  Blynk.config(BLYNK_AUTH_TOKEN);
+  Blynk.connect();
+  Serial.println("[Blynk] Blynk connection initiated.");
 #else
   Serial.println("[Blynk] Blynk disabled. Using Serial command interface.");
 #endif

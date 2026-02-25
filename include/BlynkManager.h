@@ -4,11 +4,10 @@
 #include <Arduino.h>
 
 // =============================================================================
-// BLYNK CONFIGURATION — Replace with your credentials from blynk.cloud
+// BLYNK CONFIGURATION — credentials come from platformio.ini build_flags
 // =============================================================================
-#define BLYNK_TEMPLATE_ID "TMPL_YOUR_ID"
-#define BLYNK_TEMPLATE_NAME "AquariumController"
-#define BLYNK_AUTH_TOKEN "YOUR_AUTH_TOKEN"
+// BLYNK_TEMPLATE_ID, BLYNK_TEMPLATE_NAME, BLYNK_AUTH_TOKEN
+// WIFI_SSID, WIFI_PASSWORD — all defined via -D flags in platformio.ini
 
 // Uncomment for debug prints from Blynk library
 // #define BLYNK_PRINT Serial
