@@ -44,7 +44,9 @@ void WebManager::begin(TimeManager *time, WaterManager *water,
 #ifdef USE_WEBSERVER
   _setupRoutes();
   _server.begin();
-  Serial.println("[Web] Dashboard at http://" + WiFi.localIP().toString());
+  String ipStr = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString()
+                                               : WiFi.softAPIP().toString();
+  Serial.println("[Web] Dashboard at http://" + ipStr);
 #else
   Serial.println("[Web] Web server disabled.");
 #endif

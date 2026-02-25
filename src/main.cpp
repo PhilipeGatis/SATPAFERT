@@ -78,8 +78,7 @@ void setup() {
                   AP_PASSWORD);
     Serial.print("[WiFi] AP IP: ");
     Serial.println(WiFi.softAPIP());
-    // Keep trying STA in background
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    // Removed immediate WiFi.begin() because it disrupts the SoftAP network.
   }
 
   // --- Step 4: Safety Watchdog (sensors) ---
