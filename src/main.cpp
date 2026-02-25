@@ -52,6 +52,9 @@ void setup() {
   Serial.println("==========================================\n");
 
   // --- Step 3: WiFi (must be before NTP/Blynk) ---
+  Serial.printf("[WiFi] SSID: '%s'\n", WIFI_SSID);
+  Serial.printf("[WiFi] PASS: '%s' (len=%d)\n", WIFI_PASSWORD,
+                strlen(WIFI_PASSWORD));
   Serial.print("[WiFi] Connecting");
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

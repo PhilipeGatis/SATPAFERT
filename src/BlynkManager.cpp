@@ -43,10 +43,16 @@ void BlynkManager::begin(TimeManager *time, WaterManager *water,
   _loadParams();
 
 #ifdef USE_BLYNK
-  // WiFi is already initialized in main.cpp setup()
+  // Configure Blynk auth — actual connection deferred to update() when WiFi is
+  // ready
   Blynk.config(BLYNK_AUTH_TOKEN);
-  Blynk.connect();
-  Serial.println("[Blynk] Blynk connection initiated.");
+  if (WiFi.status() == WL_CONNECTED) {
+    Blynk.connect();
+    Serial.println("[Blynk] Connected to Blynk!");
+  } else {
+    Serial.println(
+        "[Blynk] WiFi not ready — Blynk will connect when available.");
+  }
 #else
   Serial.println("[Blynk] Blynk disabled. Using Serial command interface.");
 #endif
@@ -63,7 +69,14 @@ void BlynkManager::begin(TimeManager *time, WaterManager *water,
 
 void BlynkManager::update() {
 #ifdef USE_BLYNK
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {
+    // Lazy-connect to Blynk once WiFi is up
+    if (!Blynk.connected()) {
+      Serial.println("[Blynk] WiFi ready — connecting to Blynk...");
+      Blynk.connect();
+    }
+    Blynk.run();
+  }
 #endif
   _updateTelemetry();
 }
