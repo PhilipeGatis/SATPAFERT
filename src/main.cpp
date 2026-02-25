@@ -56,7 +56,11 @@ void setup() {
   Serial.printf("[WiFi] PASS: '%s' (len=%d)\n", WIFI_PASSWORD,
                 strlen(WIFI_PASSWORD));
   Serial.print("[WiFi] Connecting");
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA);         // Set STA mode first
+  WiFi.disconnect(true, true); // Clean previous connections
+  delay(100);
+  WiFi.setSleep(
+      false); // Disable sleep for better compatibility with some routers
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   {
     int attempts = 0;
