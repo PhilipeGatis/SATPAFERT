@@ -265,8 +265,8 @@ void RainMakerManager::_printHelp() {
 // ============================================================================
 
 #ifdef USE_RAINMAKER
-#include <Device.h>
 #include <RMaker.h>
+#include <RMakerQR.h>
 
 // Instance pointer for static callback
 static RainMakerManager *_rmInstance = nullptr;
@@ -394,6 +394,12 @@ void RainMakerManager::_setupRainMaker() {
   WiFiProv.beginProvision(WIFI_PROV_SCHEME_BLE,
                           WIFI_PROV_SCHEME_HANDLER_FREE_BTDM,
                           WIFI_PROV_SECURITY_1, "aquarium01", "AquaControl");
+
+  // Print QR code for ESP RainMaker app provisioning
+  Serial.println("\n[RainMaker] Scan this QR code with the ESP RainMaker app:");
+  printQR("AquaControl", "aquarium01", "ble");
+  Serial.println("[RainMaker] PoP (Proof of Possession): aquarium01");
+  Serial.println("[RainMaker] Device Name: AquaControl\n");
 }
 
 void RainMakerManager::_writeCallback(Device *device, Param *param,

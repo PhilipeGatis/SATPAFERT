@@ -70,6 +70,9 @@ private:
   void _printHelp();
 
 #ifdef USE_RAINMAKER
+#include <RMakerDevice.h>
+#include <RMakerParam.h>
+#include <RMakerQR.h>
   /// Setup RainMaker devices and parameters
   void _setupRainMaker();
   /// RainMaker write callback (static, dispatches to instance)
