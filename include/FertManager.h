@@ -15,8 +15,8 @@ public:
 
   /// Check schedule and dose if needed. Returns true if dosing happened.
   /// @param now Current DateTime from TimeManager
-  /// @param schedHour Scheduled hour (from RainMaker)
-  /// @param schedMinute Scheduled minute (from RainMaker)
+  /// @param schedHour Scheduled hour (from WebManager)
+  /// @param schedMinute Scheduled minute (from WebManager)
   bool checkAndDose(DateTime now, uint8_t schedHour, uint8_t schedMinute);
 
   /// Manually dose a specific channel
@@ -25,7 +25,7 @@ public:
   /// @return true if dosing completed without timeout
   bool doseChannel(uint8_t ch, float ml);
 
-  // ---- Dose volumes (set via RainMaker) ----
+  // ---- Dose volumes (set via WebManager) ----
   void setDoseML(uint8_t ch, float ml);
   float getDoseML(uint8_t ch) const;
 

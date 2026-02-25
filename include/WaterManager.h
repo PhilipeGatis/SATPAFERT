@@ -50,7 +50,7 @@ public:
            _state != TPAState::ERROR;
   }
 
-  // ---- TPA parameters (set via RainMaker) ----
+  // ---- TPA parameters (set via WebManager) ----
   void setDrainTargetCm(float cm) { _drainTargetCm = cm; }
   void setRefillTargetCm(float cm) { _refillTargetCm = cm; }
   void setPrimeML(float ml) { _primeML = ml; }

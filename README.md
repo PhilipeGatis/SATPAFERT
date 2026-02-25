@@ -27,7 +27,7 @@ main.cpp               ← Orquestrador principal
 ├── TimeManager         ← RTC DS3231 + NTP sync
 ├── FertManager         ← Dosagem + dedup NVS + estoque
 ├── WaterManager        ← State machine TPA (6 estados)
-└── RainMakerManager    ← Interface Serial / ESP RainMaker
+└── WebManager          ← Dashboard web embarcado + interface Serial
 ```
 
 ### Safety-First Loop
@@ -132,14 +132,15 @@ pio device monitor
 │   ├── TimeManager.h
 │   ├── FertManager.h
 │   ├── WaterManager.h
-│   └── RainMakerManager.h
+│   ├── WebManager.h
+│   └── web_dashboard.h       # HTML/CSS/JS do dashboard
 ├── src/
 │   ├── main.cpp              # Setup + loop
 │   ├── SafetyWatchdog.cpp
 │   ├── TimeManager.cpp
 │   ├── FertManager.cpp
 │   ├── WaterManager.cpp
-│   └── RainMakerManager.cpp
+│   └── WebManager.cpp
 ├── test/
 │   ├── mocks/                # Arduino mock layer (GPIO, NVS, RTC)
 │   ├── test_fert_manager/
