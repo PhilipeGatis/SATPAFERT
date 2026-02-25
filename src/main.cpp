@@ -9,12 +9,12 @@
 //   - TimeManager:    RTC DS3231 + NTP synchronization
 //   - WaterManager:   TPA state machine (6 states)
 //   - FertManager:    Daily dosing with NVS deduplication
-//   - RainMakerManager: Cloud UI + Serial command interface
+//   - BlynkManager:   Blynk IoT app + Serial command interface
 // =============================================================================
 
+#include "BlynkManager.h"
 #include "Config.h"
 #include "FertManager.h"
-#include "RainMakerManager.h"
 #include "SafetyWatchdog.h"
 #include "TimeManager.h"
 #include "WaterManager.h"
@@ -25,41 +25,13 @@ SafetyWatchdog safety;
 TimeManager timeMgr;
 WaterManager waterMgr;
 FertManager fertMgr;
-RainMakerManager rainmaker;
+BlynkManager blynkMgr;
 
 // ---- Scheduling state ----
 bool fertDoneThisMinute = false; // Prevent re-triggering within same minute
 uint8_t lastFertMinute = 255;
 bool tpaDoneThisMinute = false;
 uint8_t lastTPAMinute = 255;
-
-// ---- Wi-Fi connection (used when RainMaker is disabled) ----
-#ifndef USE_RAINMAKER
-// Replace with your network credentials
-const char *WIFI_SSID = "TIM ULTRAFIBRA_1C88_2G";
-const char *WIFI_PASSWORD = "MYjx!43GRw";
-
-void connectWiFi() {
-  Serial.print("[WiFi] Connecting to ");
-  Serial.println(WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[WiFi] Connected!");
-    Serial.print("[WiFi] IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\n[WiFi] Connection failed. Will retry later.");
-  }
-}
-#endif
 
 // =============================================================================
 // SETUP
@@ -76,30 +48,25 @@ void setup() {
   delay(2000);
   Serial.println("\n==========================================");
   Serial.println("  AQUARIUM AUTOMATION - ESP32 Firmware");
-  Serial.println("  v1.0.0 - Safety First");
+  Serial.println("  v2.0.0 - Blynk IoT");
   Serial.println("==========================================\n");
 
-  // --- Step 3: Wi-Fi ---
-#ifndef USE_RAINMAKER
-  connectWiFi();
-#endif
-
-  // --- Step 4: Safety Watchdog (sensors) ---
+  // --- Step 3: Safety Watchdog (sensors) ---
   safety.begin();
 
-  // --- Step 5: Time Manager (RTC + NTP) ---
+  // --- Step 4: Time Manager (RTC + NTP) ---
   timeMgr.begin();
 
-  // --- Step 6: Fertilizer Manager (NVS state) ---
+  // --- Step 5: Fertilizer Manager (NVS state) ---
   fertMgr.begin();
 
-  // --- Step 7: Water Manager (TPA state machine) ---
+  // --- Step 6: Water Manager (TPA state machine) ---
   waterMgr.begin(&safety, &fertMgr);
 
-  // --- Step 8: RainMaker / Serial UI ---
-  rainmaker.begin(&timeMgr, &waterMgr, &fertMgr, &safety);
+  // --- Step 7: Blynk IoT + Serial UI (also handles WiFi) ---
+  blynkMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety);
 
-  // --- Step 9: Canister filter ON by default ---
+  // --- Step 8: Canister filter ON by default ---
   digitalWrite(PIN_CANISTER, HIGH);
   Serial.println("[Main] Canister filter ON (default).");
 
@@ -115,7 +82,8 @@ void loop() {
 
   // If in emergency, skip all scheduling and just process commands
   if (safety.isEmergency()) {
-    rainmaker.processSerialCommands();
+    blynkMgr.processSerialCommands();
+    blynkMgr.update(); // keep Blynk alive for notifications
     delay(100);
     return;
   }
@@ -123,8 +91,8 @@ void loop() {
   // ---- 2. TIME SYNC (periodic NTP re-sync) ----
   timeMgr.update();
 
-  // ---- 3. SERIAL COMMANDS / RAINMAKER ----
-  rainmaker.processSerialCommands();
+  // ---- 3. SERIAL COMMANDS + BLYNK ----
+  blynkMgr.processSerialCommands();
 
   // ---- 4. SCHEDULING (only if not in maintenance and not running TPA) ----
   if (!safety.isMaintenanceMode()) {
@@ -132,8 +100,8 @@ void loop() {
     uint8_t currentMinute = now.minute();
 
     // --- Fertilization schedule ---
-    uint8_t fertH = rainmaker.getFertHour();
-    uint8_t fertM = rainmaker.getFertMinute();
+    uint8_t fertH = blynkMgr.getFertHour();
+    uint8_t fertM = blynkMgr.getFertMinute();
 
     // Reset trigger flag when minute changes
     if (currentMinute != lastFertMinute) {
@@ -150,9 +118,9 @@ void loop() {
     }
 
     // --- TPA schedule ---
-    uint8_t tpaD = rainmaker.getTPADay();
-    uint8_t tpaH = rainmaker.getTPAHour();
-    uint8_t tpaM = rainmaker.getTPAMinute();
+    uint8_t tpaD = blynkMgr.getTPADay();
+    uint8_t tpaH = blynkMgr.getTPAHour();
+    uint8_t tpaM = blynkMgr.getTPAMinute();
 
     if (currentMinute != lastTPAMinute) {
       tpaDoneThisMinute = false;
@@ -176,8 +144,8 @@ void loop() {
     waterMgr.setLastTPATime(timeMgr.getFormattedTime());
   }
 
-  // ---- 6. TELEMETRY ----
-  rainmaker.updateTelemetry();
+  // ---- 6. BLYNK + TELEMETRY ----
+  blynkMgr.update();
 
   // ---- 7. YIELD ----
   delay(50); // ~20 Hz loop, fast enough for safety, gentle on CPU
