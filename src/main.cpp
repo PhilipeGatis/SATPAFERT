@@ -81,14 +81,32 @@ void setup() {
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
 
-  // Active Scan Workaround: Force the radio to wake up and populate the BSSID
-  // cache This is a known workaround for WL_IDLE_STATUS on tricky routers
+  // Active Scan Workaround: Force the radio to wake up, populate the BSSID
+  // cache, and extract the exact BSSID/Channel to avoid Reason 201 (NO AP FOUND
+  // / Band Steering)
   Serial.print(" Scanning...");
-  WiFi.scanNetworks();
+  int n = WiFi.scanNetworks();
   delay(100);
 
-  // Re-attempt standard connection, relying on the ESP32's internal channel
-  // selection. CRITICAL FIX: To prevent Reason 15 (4-way handshake timeout) on
+  uint8_t targetBSSID[6] = {0};
+  int32_t targetChannel = 0;
+  bool bssidFound = false;
+
+  for (int i = 0; i < n; ++i) {
+    if (WiFi.SSID(i) == savedSSID) {
+      memcpy(targetBSSID, WiFi.BSSID(i), 6);
+      targetChannel = WiFi.channel(i);
+      bssidFound = true;
+      Serial.printf("\n[WiFi] Found Target BSSID: "
+                    "%02X:%02X:%02X:%02X:%02X:%02X on Channel: %d\n",
+                    targetBSSID[0], targetBSSID[1], targetBSSID[2],
+                    targetBSSID[3], targetBSSID[4], targetBSSID[5],
+                    targetChannel);
+      break;
+    }
+  }
+
+  // CRITICAL FIX: To prevent Reason 15 (4-way handshake timeout) on
   // TIM routers we need to set the WiFi config explicitly to disable Protected
   // Management Frames (PMF) because the ESP32 WPA3 implementation sometimes
   // fails to negotiate with modern mixed-mode routers.
@@ -104,7 +122,14 @@ void setup() {
   wifi_config.sta.pmf_cfg.required = false;
 
   esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
-  WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+
+  // Re-attempt standard connection, locking to BSSID and Channel if found
+  if (bssidFound) {
+    WiFi.begin(savedSSID.c_str(), savedPass.c_str(), targetChannel, targetBSSID,
+               true);
+  } else {
+    WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+  }
 
   {
     int attempts = 0;
