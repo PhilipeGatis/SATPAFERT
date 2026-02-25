@@ -24,12 +24,8 @@ public:
   /// Get current DateTime (RTC preferred, NTP fallback)
   DateTime now();
 
-  /// Check if current time matches a daily schedule (hour:minute ± 1 min
-  /// window)
+  /// Window for daily match
   bool isDailyScheduleTime(uint8_t hour, uint8_t minute);
-
-  /// Check if current time matches a weekly schedule
-  bool isWeeklyScheduleDay(uint8_t dayOfWeek, uint8_t hour, uint8_t minute);
 
   /// Get formatted time string "YYYY/MM/DD HH:MM:SS"
   String getFormattedTime();

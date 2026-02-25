@@ -96,14 +96,6 @@ bool TimeManager::isDailyScheduleTime(uint8_t hour, uint8_t minute) {
   return (current.hour() == hour && current.minute() == minute);
 }
 
-bool TimeManager::isWeeklyScheduleDay(uint8_t dayOfWeek, uint8_t hour,
-                                      uint8_t minute) {
-  DateTime current = now();
-  // dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday
-  return (current.dayOfTheWeek() == dayOfWeek && current.hour() == hour &&
-          current.minute() == minute);
-}
-
 String TimeManager::getFormattedTime() {
   DateTime dt = now();
   char buf[22];

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, type AQStatus } from '../App';
 
-function FertCard({ index, s }: { index: number; s: AQStatus['stocks'][0] }) {
+export function FertCard({ index, s, hideAgenda }: { index: number; s: AQStatus['stocks'][0]; hideAgenda?: boolean }) {
     const [name, setName] = useState(s.name || '');
     const [resetVol, setResetVol] = useState('');
     const [calibMl, setCalibMl] = useState('');
@@ -105,62 +105,66 @@ function FertCard({ index, s }: { index: number; s: AQStatus['stocks'][0] }) {
 
 
             {/* SCHEDULE */}
-            <h3 className="mb-3 flex justify-between items-center text-xs font-bold uppercase tracking-wider text-muted">
-                <span>AGENDA ({String(s.sH).padStart(2, '0')}:{String(s.sM).padStart(2, '0')})</span>
-                {s.fR > 0 && <span>{(doses.reduce((a, b) => a + Number(b), 0) / s.fR).toFixed(1)}s TOTAL/SEM</span>}
-            </h3>
+            {!hideAgenda && (
+                <>
+                    <h3 className="mb-3 flex justify-between items-center text-xs font-bold uppercase tracking-wider text-muted">
+                        <span>AGENDA ({String(s.sH).padStart(2, '0')}:{String(s.sM).padStart(2, '0')})</span>
+                        {s.fR > 0 && <span>{(doses.reduce((a, b) => a + Number(b), 0) / s.fR).toFixed(1)}s TOTAL/SEM</span>}
+                    </h3>
 
-            <div className="mb-4 grid grid-cols-7 gap-1">
-                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => {
-                    const estimatedSecs = s.fR > 0 ? (Number(doses[i]) / s.fR).toFixed(1) : '0';
-                    return (
-                        <div key={i} className="flex flex-col items-center gap-1">
-                            <span className="text-[10px] font-bold text-muted">{day}</span>
-                            <div className="relative w-full">
-                                <input
-                                    type="number" step="0.5" min="0" max="100"
-                                    className="w-full min-w-0 rounded-t-sm border-b border-muted bg-white/5 p-1 text-center text-[11px] font-medium text-text outline-none transition-colors focus:border-accent remove-arrow"
-                                    style={{ MozAppearance: 'textfield' }}
-                                    value={doses[i]}
-                                    onChange={(e) => {
-                                        const newDoses = [...doses];
-                                        newDoses[i] = e.target.value;
-                                        setDoses(newDoses);
-                                    }}
-                                />
-                            </div>
-                            <span className="text-[9px] text-accent font-bold tracking-tighter">
-                                {Number(doses[i]) > 0 ? `${estimatedSecs}s` : '-'}
-                            </span>
+                    <div className="mb-4 grid grid-cols-7 gap-1">
+                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => {
+                            const estimatedSecs = s.fR > 0 ? (Number(doses[i]) / s.fR).toFixed(1) : '0';
+                            return (
+                                <div key={i} className="flex flex-col items-center gap-1">
+                                    <span className="text-[10px] font-bold text-muted">{day}</span>
+                                    <div className="relative w-full">
+                                        <input
+                                            type="number" step="0.5" min="0" max="100"
+                                            className="w-full min-w-0 rounded-t-sm border-b border-muted bg-white/5 p-1 text-center text-[11px] font-medium text-text outline-none transition-colors focus:border-accent remove-arrow"
+                                            style={{ MozAppearance: 'textfield' }}
+                                            value={doses[i]}
+                                            onChange={(e) => {
+                                                const newDoses = [...doses];
+                                                newDoses[i] = e.target.value;
+                                                setDoses(newDoses);
+                                            }}
+                                        />
+                                    </div>
+                                    <span className="text-[9px] text-accent font-bold tracking-tighter">
+                                        {Number(doses[i]) > 0 ? `${estimatedSecs}s` : '-'}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex gap-4 mb-8">
+                        <div className="flex-1 flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Hora</label>
+                            <input
+                                type="number" min="0" max="23" placeholder="HH"
+                                className="w-full rounded-t-md border-b-2 border-muted bg-white/5 px-2 py-2 text-center text-sm outline-none transition-colors focus:border-accent"
+                                value={sH} onChange={(e) => setSH(e.target.value)}
+                            />
                         </div>
-                    );
-                })}
-            </div>
-            <div className="flex gap-4 mb-8">
-                <div className="flex-1 flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Hora</label>
-                    <input
-                        type="number" min="0" max="23" placeholder="HH"
-                        className="w-full rounded-t-md border-b-2 border-muted bg-white/5 px-2 py-2 text-center text-sm outline-none transition-colors focus:border-accent"
-                        value={sH} onChange={(e) => setSH(e.target.value)}
-                    />
-                </div>
-                <div className="flex items-center text-muted font-bold mt-4">:</div>
-                <div className="flex-1 flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Mino</label>
-                    <input
-                        type="number" min="0" max="59" placeholder="MM"
-                        className="w-full rounded-t-md border-b-2 border-muted bg-white/5 px-2 py-2 text-center text-sm outline-none transition-colors focus:border-accent"
-                        value={sM} onChange={(e) => setSM(e.target.value)}
-                    />
-                </div>
-                <button
-                    onClick={handleAgendar}
-                    className="mt-4 flex-none rounded-full bg-accent px-4 py-2 text-xs font-bold uppercase tracking-wider text-black shadow-md transition-all hover:bg-blue-300 active:scale-95"
-                >
-                    Salvar
-                </button>
-            </div>
+                        <div className="flex items-center text-muted font-bold mt-4">:</div>
+                        <div className="flex-1 flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Mino</label>
+                            <input
+                                type="number" min="0" max="59" placeholder="MM"
+                                className="w-full rounded-t-md border-b-2 border-muted bg-white/5 px-2 py-2 text-center text-sm outline-none transition-colors focus:border-accent"
+                                value={sM} onChange={(e) => setSM(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            onClick={handleAgendar}
+                            className="mt-4 flex-none rounded-full bg-accent px-4 py-2 text-xs font-bold uppercase tracking-wider text-black shadow-md transition-all hover:bg-blue-300 active:scale-95"
+                        >
+                            Salvar
+                        </button>
+                    </div>
+                </>
+            )}
 
             {/* CALIBRATION & PWM */}
             <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">
