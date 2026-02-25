@@ -79,6 +79,10 @@ void WebManager::update() {
 String WebManager::_buildStatusJSON() {
   String json = "{";
 
+  // WiFi Connection Status
+  json += "\"wifiConnected\":" +
+          String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
+
   if (_time) {
     json += "\"time\":\"" + _time->getFormattedTime() + "\",";
   }

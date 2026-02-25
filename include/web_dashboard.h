@@ -22,6 +22,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .dot.on{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
 .dot.off{background:var(--danger);box-shadow:0 0 8px var(--danger)}
 .grid{display:grid;grid-template-columns:1fr;gap:12px;padding:12px;max-width:800px;margin:0 auto}
+body.ap-mode .grid{display:block}
+body.ap-mode .card:not(#wifiCard){display:none !important}
+body.ap-mode #emergencyBanner{display:none !important}
 @media(min-width:600px){.grid{grid-template-columns:1fr 1fr}}
 .card{background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)}
 .card h2{font-size:.85rem;text-transform:uppercase;color:var(--muted);letter-spacing:1px;margin-bottom:12px}
@@ -112,7 +115,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 
   <!-- WiFi Config -->
-  <div class="card">
+  <div class="card" id="wifiCard">
     <h2>📶 Configurar WiFi</h2>
     <form onsubmit="saveWiFi(event)">
       <div class="input-row" style="margin-bottom:8px">
@@ -214,6 +217,11 @@ function resetStock(ch) {
 }
 
 function updateUI(d) {
+  // AP Mode isolation
+  if(d.wifiConnected !== undefined) {
+    document.body.className = d.wifiConnected ? '' : 'ap-mode';
+  }
+
   // Time
   if(d.time) $('sysTime').textContent = d.time;
 
