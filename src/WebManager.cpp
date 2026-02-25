@@ -25,7 +25,7 @@ WebManager::WebManager()
       _time(nullptr), _water(nullptr), _fert(nullptr), _safety(nullptr),
       _tpaInterval(7), _tpaHour(10), _tpaMinute(0), _tpaLastRun(0),
       _tpaPercent(20), _primeML(DEFAULT_PRIME_ML), _aqHeight(0), _aqLength(0),
-      _aqWidth(0), _drainFlowRate(0), _refillFlowRate(0), _primeRatio(0),
+      _aqWidth(0), _aqMarginCm(0), _drainFlowRate(0), _refillFlowRate(0),
       _reservoirVolume(0), _reservoirSafetyML(0), _lastTelemetryMs(0),
       _lastSSEMs(0) {
 }
@@ -132,6 +132,7 @@ String WebManager::_buildStatusJSON() {
   json += "\"aqHeight\":" + String(_aqHeight) + ",";
   json += "\"aqLength\":" + String(_aqLength) + ",";
   json += "\"aqWidth\":" + String(_aqWidth) + ",";
+  json += "\"aqMarginCm\":" + String(_aqMarginCm) + ",";
   json += "\"aquariumVolume\":" + String(aqVol) + ",";
   json += "\"litersPerCm\":" + String(lPerCm, 2) + ",";
   json += "\"drainFlowRate\":" + String(_drainFlowRate, 2) + ",";
@@ -281,6 +282,11 @@ void WebManager::_setupRoutes() {
           _reservoirVolume = rv;
           changed = true;
         }
+        int mg = _extractInt(body, "aqMarginCm");
+        if (mg >= 0) {
+          _aqMarginCm = mg;
+          changed = true;
+        }
 
         if (changed) {
           // Auto-calculate primeML from reservoirVolume × ratio
@@ -290,9 +296,10 @@ void WebManager::_setupRoutes() {
               _water->setPrimeML(_primeML);
           }
           _saveParams();
-          uint32_t vol = (uint32_t)_aqHeight * _aqLength * _aqWidth / 1000;
-          Serial.printf("[Web] Aquarium dims: %dx%dx%d cm = %lu L\n", _aqHeight,
-                        _aqLength, _aqWidth, vol);
+          uint32_t vol = getAquariumVolume();
+          Serial.printf(
+              "[Web] Aquarium dims: %dx%dx%d cm (margin %d) = %lu L\n",
+              _aqHeight, _aqLength, _aqWidth, _aqMarginCm, vol);
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
@@ -715,6 +722,7 @@ void WebManager::_loadParams() {
   _aqHeight = _prefs.getUShort("aqH", 0);
   _aqLength = _prefs.getUShort("aqL", 0);
   _aqWidth = _prefs.getUShort("aqW", 0);
+  _aqMarginCm = _prefs.getUShort("aqMg", 0);
   _drainFlowRate = _prefs.getFloat("drFR", 0);
   _refillFlowRate = _prefs.getFloat("rfFR", 0);
   _primeRatio = _prefs.getFloat("pRat", 0);
@@ -739,6 +747,7 @@ void WebManager::_saveParams() {
   _prefs.putUShort("aqH", _aqHeight);
   _prefs.putUShort("aqL", _aqLength);
   _prefs.putUShort("aqW", _aqWidth);
+  _prefs.putUShort("aqMg", _aqMarginCm);
   _prefs.putFloat("drFR", _drainFlowRate);
   _prefs.putFloat("rfFR", _refillFlowRate);
   _prefs.putFloat("pRat", _primeRatio);

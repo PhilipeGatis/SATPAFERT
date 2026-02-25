@@ -24,6 +24,7 @@ export type AQStatus = {
   aqHeight: number;
   aqLength: number;
   aqWidth: number;
+  aqMarginCm: number;
   aquariumVolume: number;
   litersPerCm: number;
   drainFlowRate: number;

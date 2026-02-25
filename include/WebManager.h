@@ -35,7 +35,10 @@ public:
 
   // ---- Aquarium config ----
   uint32_t getAquariumVolume() const {
-    return (uint32_t)_aqHeight * _aqLength * _aqWidth / 1000;
+    int16_t effH = (int16_t)_aqHeight - (int16_t)_aqMarginCm;
+    if (effH <= 0)
+      return 0;
+    return (uint32_t)effH * _aqLength * _aqWidth / 1000;
   }
   float getLitersPerCm() const { return (float)_aqLength * _aqWidth / 1000.0f; }
   float getReservoirSafetyML() const { return _reservoirSafetyML; }
@@ -68,6 +71,7 @@ private:
   uint16_t _aqHeight;        // Altura (cm)
   uint16_t _aqLength;        // Comprimento (cm)
   uint16_t _aqWidth;         // Largura (cm)
+  uint16_t _aqMarginCm;      // Margem da borda até a água (cm)
   float _drainFlowRate;      // mL/s
   float _refillFlowRate;     // mL/s
   float _primeRatio;         // mL per liter (manufacturer ratio)

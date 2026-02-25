@@ -11,6 +11,7 @@ export default function ConfigTab({ status }: { status: AQStatus | null }) {
     const [aqW, setAqW] = useState('');
     const [primeRatio, setPrimeRatio] = useState('');
     const [reservoirVolume, setReservoirVolume] = useState('');
+    const [aqMargin, setAqMargin] = useState('');
 
     const handleScan = async () => {
         setScanning(true);
@@ -56,6 +57,7 @@ export default function ConfigTab({ status }: { status: AQStatus | null }) {
             if (!aqH && status.aqHeight) setAqH(status.aqHeight.toString());
             if (!aqL && status.aqLength) setAqL(status.aqLength.toString());
             if (!aqW && status.aqWidth) setAqW(status.aqWidth.toString());
+            if (!aqMargin && status.aqMarginCm !== undefined) setAqMargin(status.aqMarginCm.toString());
             if (!primeRatio && status.primeRatio !== undefined) setPrimeRatio(status.primeRatio.toString());
             if (!reservoirVolume && status.reservoirVolume !== undefined) setReservoirVolume(status.reservoirVolume.toString());
         }
@@ -64,7 +66,7 @@ export default function ConfigTab({ status }: { status: AQStatus | null }) {
     const h = parseInt(aqH) || 0;
     const l = parseInt(aqL) || 0;
     const w = parseInt(aqW) || 0;
-    const computedVolume = h * l * w / 1000;
+    const computedVolume = (h - (parseInt(aqMargin) || 0)) * l * w / 1000;
     const computedLPerCm = l * w / 1000;
     const computedPrime = (parseFloat(reservoirVolume) || 0) * (parseFloat(primeRatio) || 0);
 
@@ -98,6 +100,13 @@ export default function ConfigTab({ status }: { status: AQStatus | null }) {
                                 <span className="text-[9px] text-muted">Largura (L)</span>
                             </div>
                         </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-muted uppercase tracking-wider">Margem da borda (cm)</label>
+                        <input type="number" min="0" max="99" step="1" placeholder="Ex: 3"
+                            className="w-full rounded-md border-b-2 border-muted bg-white/5 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+                            value={aqMargin} onChange={e => setAqMargin(e.target.value)} />
+                        <span className="text-[10px] text-muted italic">Distância da borda do aquário até a superfície da água quando cheio</span>
                     </div>
                     <div className="rounded-lg bg-accent/10 px-4 py-3 flex flex-col gap-1">
                         <div>
@@ -136,6 +145,7 @@ export default function ConfigTab({ status }: { status: AQStatus | null }) {
                             aqHeight: parseInt(aqH) || 0,
                             aqLength: parseInt(aqL) || 0,
                             aqWidth: parseInt(aqW) || 0,
+                            aqMarginCm: parseInt(aqMargin) || 0,
                             primeRatio: parseFloat(primeRatio) || 0,
                             reservoirVolume: parseInt(reservoirVolume) || 0
                         })}
