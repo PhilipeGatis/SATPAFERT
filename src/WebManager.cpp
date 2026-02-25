@@ -3,7 +3,7 @@
 #include "SafetyWatchdog.h"
 #include "TimeManager.h"
 #include "WaterManager.h"
-#include "web_dashboard.h"
+#include <LittleFS.h>
 #include <Preferences.h>
 
 #ifdef USE_WEBSERVER
@@ -23,7 +23,6 @@ WebManager::WebManager()
     :
 #endif
       _time(nullptr), _water(nullptr), _fert(nullptr), _safety(nullptr),
-      _fertHour(DEFAULT_FERT_HOUR), _fertMinute(DEFAULT_FERT_MINUTE),
       _tpaDay(DEFAULT_TPA_DAY), _tpaHour(DEFAULT_TPA_HOUR),
       _tpaMinute(DEFAULT_TPA_MINUTE), _lastTelemetryMs(0), _lastSSEMs(0) {
 }
@@ -52,8 +51,8 @@ void WebManager::begin(TimeManager *time, WaterManager *water,
 #endif
 
   _printHelp();
-  Serial.printf("[Web] Schedule: Fert=%02d:%02d | TPA=day%d %02d:%02d\n",
-                _fertHour, _fertMinute, _tpaDay, _tpaHour, _tpaMinute);
+  Serial.printf("[Web] TPA Schedule: day%d %02d:%02d\n", _tpaDay, _tpaHour,
+                _tpaMinute);
 }
 
 // ============================================================================
@@ -62,11 +61,12 @@ void WebManager::begin(TimeManager *time, WaterManager *water,
 
 void WebManager::update() {
 #ifdef USE_WEBSERVER
-  // Send SSE telemetry every 2 seconds
+  // Send SSE telemetry every 3 seconds to reduce network congestion
   unsigned long now = millis();
-  if ((now - _lastSSEMs) >= 2000 && _events.count() > 0) {
+  if ((now - _lastSSEMs) >= 3000 && _events.count() > 0) {
     _lastSSEMs = now;
-    _events.send(_buildStatusJSON().c_str(), "status", millis());
+    String json = _buildStatusJSON();
+    _events.send(json.c_str(), "status", millis());
   }
 #endif
   _updateTelemetry();
@@ -77,7 +77,9 @@ void WebManager::update() {
 // ============================================================================
 
 String WebManager::_buildStatusJSON() {
-  String json = "{";
+  String json;
+  json.reserve(1200); // Prevent heap fragmentation and speed up concatenation
+  json += "{";
 
   // WiFi Connection Status
   json += "\"wifiConnected\":" +
@@ -108,8 +110,6 @@ String WebManager::_buildStatusJSON() {
   }
 
   // Schedule
-  json += "\"fertHour\":" + String(_fertHour) + ",";
-  json += "\"fertMinute\":" + String(_fertMinute) + ",";
   json += "\"tpaDay\":" + String(_tpaDay) + ",";
   json += "\"tpaHour\":" + String(_tpaHour) + ",";
   json += "\"tpaMinute\":" + String(_tpaMinute) + ",";
@@ -120,9 +120,19 @@ String WebManager::_buildStatusJSON() {
     for (uint8_t i = 0; i < NUM_FERTS + 1; i++) {
       if (i > 0)
         json += ",";
-      json += "{\"stock\":" + String(_fert->getStockML(i), 0) +
-              ",\"dose\":" + String(_fert->getDoseML(i), 1) + ",\"name\":\"" +
-              _fert->getName(i) + "\"}";
+      json += "{\"stock\":" + String(_fert->getStockML(i), 0) + ",\"name\":\"" +
+              _fert->getName(i) + "\"" + ",\"doses\":[" +
+              String(_fert->getDoseML(i, 0), 1) + "," +
+              String(_fert->getDoseML(i, 1), 1) + "," +
+              String(_fert->getDoseML(i, 2), 1) + "," +
+              String(_fert->getDoseML(i, 3), 1) + "," +
+              String(_fert->getDoseML(i, 4), 1) + "," +
+              String(_fert->getDoseML(i, 5), 1) + "," +
+              String(_fert->getDoseML(i, 6), 1) + "]" +
+              ",\"sH\":" + String(_fert->getSchedHour(i)) +
+              ",\"sM\":" + String(_fert->getSchedMinute(i)) +
+              ",\"fR\":" + String(_fert->getFlowRate(i), 2) +
+              ",\"pwm\":" + String(_fert->getPWM(i)) + "}";
     }
   }
   json += "]";
@@ -137,10 +147,8 @@ String WebManager::_buildStatusJSON() {
 
 #ifdef USE_WEBSERVER
 void WebManager::_setupRoutes() {
-  // ---- Dashboard HTML ----
-  _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/html", DASHBOARD_HTML);
-  });
+  // ---- Dashboard React App (LittleFS) ----
+  _server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
   // ---- SSE Events ----
   _events.onConnect([this](AsyncEventSourceClient *client) {
@@ -247,26 +255,15 @@ void WebManager::_setupRoutes() {
     }
   });
 
-  // ---- POST /api/schedule (JSON body) ----
+  // ---- POST /api/schedule (JSON body - only TPA now) ----
   _server.on(
       "/api/schedule", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
       [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
              size_t index, size_t total) {
         String body = String((char *)data).substring(0, len);
-        // Simple JSON parsing without ArduinoJson (save memory)
         bool changed = false;
         int val;
 
-        val = _extractInt(body, "fertHour");
-        if (val >= 0 && val <= 23) {
-          _fertHour = val;
-          changed = true;
-        }
-        val = _extractInt(body, "fertMinute");
-        if (val >= 0 && val <= 59) {
-          _fertMinute = val;
-          changed = true;
-        }
         val = _extractInt(body, "tpaDay");
         if (val >= 0 && val <= 6) {
           _tpaDay = val;
@@ -285,28 +282,103 @@ void WebManager::_setupRoutes() {
 
         if (changed) {
           _saveParams();
-          Serial.printf("[Web] Schedule updated: Fert=%02d:%02d TPA=day%d "
-                        "%02d:%02d\n",
-                        _fertHour, _fertMinute, _tpaDay, _tpaHour, _tpaMinute);
+          Serial.printf("[Web] TPA Schedule updated: day%d %02d:%02d\n",
+                        _tpaDay, _tpaHour, _tpaMinute);
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
 
-  // ---- POST /api/dose (JSON body) ----
+  // ---- Individual Fert Schedule ----
   _server.on(
-      "/api/dose", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      "/api/fert/schedule", HTTP_POST, [](AsyncWebServerRequest *request) {},
+      NULL,
       [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
              size_t index, size_t total) {
         String body = String((char *)data).substring(0, len);
         int ch = _extractInt(body, "channel");
-        float ml = _extractFloat(body, "ml");
-        if (ch >= 0 && ch <= 4 && ml > 0 && _fert) {
-          _fert->setDoseML(ch, ml);
+        int h = _extractInt(body, "hour");
+        int m = _extractInt(body, "minute");
+        float doses[7] = {0};
+        bool hasDoses = _extractFloatArray(body, "doses", doses, 7);
+
+        if (ch >= 0 && ch <= 4 && h >= 0 && h <= 23 && m >= 0 && m <= 59 &&
+            hasDoses && _fert) {
+          _fert->setScheduleTime(ch, h, m);
+          for (uint8_t d = 0; d < 7; d++) {
+            _fert->setDoseML(ch, d, doses[d]);
+          }
           _fert->saveState();
-          Serial.printf("[Web] Dose CH%d set to %.1f ml\n", ch + 1, ml);
+          Serial.printf("[Web] CH%d Schedule updated -> time: %02d:%02d\n",
+                        ch + 1, h, m);
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
+
+  // ---- Pump Calibration: Toggle Prime ----
+  _server.on(
+      "/api/fert/pump", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        int ch = _extractInt(body, "channel");
+        int st = _extractInt(body, "state");
+
+        if (ch >= 0 && ch <= 4 && _fert) {
+          _fert->manualPump(ch, st == 1);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- Pump Calibration: Run 3 Seconds ----
+  _server.on(
+      "/api/fert/run3s", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        int ch = _extractInt(body, "channel");
+
+        if (ch >= 0 && ch <= 4 && _fert) {
+          // Block and pulse
+          _fert->manualPump(ch, true);
+          unsigned long start = millis();
+          while ((millis() - start) < 3000) {
+            delay(10);
+          }
+          _fert->manualPump(ch, false);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- Pump Calibration: Save Flow Rate ----
+  _server.on(
+      "/api/fert/calibrate", HTTP_POST, [](AsyncWebServerRequest *request) {},
+      NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        int ch = _extractInt(body, "channel");
+
+        int startIdx = body.indexOf("\"ml\":");
+        if (startIdx != -1 && ch >= 0 && ch <= 4 && _fert) {
+          startIdx += 5;
+          int endIdx = body.indexOf(",", startIdx);
+          if (endIdx == -1)
+            endIdx = body.indexOf("}", startIdx);
+          if (endIdx != -1) {
+            float measuredML = body.substring(startIdx, endIdx).toFloat();
+            if (measuredML > 0.1f) {
+              float newRate = measuredML / 3.0f; // 3 seconds baseline
+              _fert->setFlowRate(ch, newRate);
+              _fert->saveState();
+              Serial.printf("[Web] CH%d flow rate calibrated to %.2f mL/s\n",
+                            ch + 1, newRate);
+            }
+          }
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // Obsolete: /api/dose replaced by full /api/fert/schedule usage.
 
   // ---- POST /api/stock/reset (JSON body) ----
   _server.on(
@@ -336,6 +408,22 @@ void WebManager::_setupRoutes() {
 
         if (ch >= 0 && ch <= 4 && nameStr.length() > 0 && _fert) {
           _fert->setName(ch, nameStr);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/fert/pwm (JSON body: {"channel": 0, "pwm": 255})
+  _server.on(
+      "/api/fert/pwm", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        int ch = _extractInt(body, "channel");
+        int pwmValue = _extractInt(body, "pwm");
+
+        if (ch >= 0 && ch <= 4 && pwmValue >= 0 && pwmValue <= 255 && _fert) {
+          _fert->setPWM(ch, pwmValue);
+          Serial.printf("[Web] CH%d PWM set to %d\n", ch + 1, pwmValue);
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
@@ -374,6 +462,33 @@ String WebManager::_extractString(const String &json, const char *key) {
   if (endIdx < 0)
     return "";
   return json.substring(startIdx, endIdx);
+}
+
+bool WebManager::_extractFloatArray(const String &json, const char *key,
+                                    float *outArray, uint8_t expectedSize) {
+  String search = String("\"") + key + "\":[";
+  int startIdx = json.indexOf(search);
+  if (startIdx < 0)
+    return false;
+  startIdx += search.length();
+
+  int endIdx = json.indexOf("]", startIdx);
+  if (endIdx < 0)
+    return false;
+
+  String arrayStr = json.substring(startIdx, endIdx);
+  int lastComma = 0;
+  for (uint8_t i = 0; i < expectedSize; i++) {
+    int nextComma = arrayStr.indexOf(",", lastComma);
+    if (nextComma == -1) {
+      outArray[i] = arrayStr.substring(lastComma).toFloat();
+      break;
+    } else {
+      outArray[i] = arrayStr.substring(lastComma, nextComma).toFloat();
+      lastComma = nextComma + 1;
+    }
+  }
+  return true;
 }
 
 // ============================================================================
@@ -419,8 +534,6 @@ void WebManager::_updateTelemetry() {
 
 void WebManager::_loadParams() {
   _prefs.begin("aqua", true);
-  _fertHour = _prefs.getUChar("fertH", DEFAULT_FERT_HOUR);
-  _fertMinute = _prefs.getUChar("fertM", DEFAULT_FERT_MINUTE);
   _tpaDay = _prefs.getUChar("tpaD", DEFAULT_TPA_DAY);
   _tpaHour = _prefs.getUChar("tpaH", DEFAULT_TPA_HOUR);
   _tpaMinute = _prefs.getUChar("tpaM", DEFAULT_TPA_MINUTE);
@@ -429,8 +542,6 @@ void WebManager::_loadParams() {
 
 void WebManager::_saveParams() {
   _prefs.begin("aqua", false);
-  _prefs.putUChar("fertH", _fertHour);
-  _prefs.putUChar("fertM", _fertMinute);
   _prefs.putUChar("tpaD", _tpaDay);
   _prefs.putUChar("tpaH", _tpaHour);
   _prefs.putUChar("tpaM", _tpaMinute);
@@ -471,14 +582,8 @@ void WebManager::processSerialCommands() {
       }
     }
   } else if (cmd.startsWith("fert_time ")) {
-    int h = cmd.substring(10, 12).toInt();
-    int m = cmd.substring(13, 15).toInt();
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-      _fertHour = h;
-      _fertMinute = m;
-      _saveParams();
-      Serial.printf("[CMD] Fert schedule set to %02d:%02d\n", h, m);
-    }
+    Serial.println("[CMD] fert_time is obsolete. Use individual channel "
+                   "scheduling via web.");
   } else if (cmd.startsWith("tpa_time ")) {
     int d = cmd.substring(9, 10).toInt();
     int h = cmd.substring(11, 13).toInt();
@@ -491,13 +596,8 @@ void WebManager::processSerialCommands() {
       Serial.printf("[CMD] TPA schedule set to day %d, %02d:%02d\n", d, h, m);
     }
   } else if (cmd.startsWith("dose ")) {
-    int ch = cmd.substring(5, 6).toInt();
-    float ml = cmd.substring(7).toFloat();
-    if (ch >= 1 && ch <= 4 && ml > 0) {
-      _fert->setDoseML(ch - 1, ml);
-      _fert->saveState();
-      Serial.printf("[CMD] Fert CH%d dose set to %.1f ml\n", ch, ml);
-    }
+    Serial.println(
+        "[CMD] dose is obsolete. Use individual channel scheduling via web.");
   } else if (cmd.startsWith("reset_stock ")) {
     int ch = cmd.substring(12, 13).toInt();
     float ml = cmd.substring(14).toFloat();
@@ -574,15 +674,17 @@ void WebManager::_printStatus() {
     Serial.printf("TPA: %s | Canister: %s\n", _water->getStateName(),
                   _water->isCanisterOn() ? "ON" : "OFF");
   }
-  Serial.printf("Schedule: Fert=%02d:%02d | TPA=day%d %02d:%02d\n", _fertHour,
-                _fertMinute, _tpaDay, _tpaHour, _tpaMinute);
+  Serial.printf("Schedule: TPA=day%d %02d:%02d\n", _tpaDay, _tpaHour,
+                _tpaMinute);
   if (_fert) {
     for (uint8_t i = 0; i < NUM_FERTS; i++) {
-      Serial.printf("CH%d: dose=%.1f ml, stock=%.0f ml\n", i + 1,
-                    _fert->getDoseML(i), _fert->getStockML(i));
+      Serial.printf("CH%d: dose[Sun]=%.1f ml, stock=%.0f ml, rate=%.2f mL/s\n",
+                    i + 1, _fert->getDoseML(i, 0), _fert->getStockML(i),
+                    _fert->getFlowRate(i));
     }
-    Serial.printf("Prime: dose=%.1f ml, stock=%.0f ml\n",
-                  _fert->getDoseML(NUM_FERTS), _fert->getStockML(NUM_FERTS));
+    Serial.printf("Prime: dose[Sun]=%.1f ml, stock=%.0f ml, rate=%.2f mL/s\n",
+                  _fert->getDoseML(NUM_FERTS, 0), _fert->getStockML(NUM_FERTS),
+                  _fert->getFlowRate(NUM_FERTS));
   }
   Serial.println("=====================\n");
 }

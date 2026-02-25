@@ -1,0 +1,137 @@
+import { useEffect, useState } from 'react';
+import HomeTab from './components/HomeTab';
+import AgendaTab from './components/AgendaTab';
+import FertsTab from './components/FertsTab';
+import ConfigTab from './components/ConfigTab';
+
+export type AQStatus = {
+  wifiConnected: boolean;
+  time: string;
+  waterLevel: number;
+  optical: boolean;
+  float: boolean;
+  emergency: boolean;
+  maintenance: boolean;
+  tpaState: string;
+  canister: boolean;
+  tpaDay: number;
+  tpaHour: number;
+  tpaMinute: number;
+  stocks: Array<{
+    name: string;
+    stock: number;
+    doses: number[];
+    sH: number;
+    sM: number;
+    fR: number;
+    pwm: number;
+  }>;
+};
+
+export const api = (method: string, url: string, body?: any) => {
+  fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.error) alert(d.error);
+    })
+    .catch((e) => console.error(e));
+};
+
+function App() {
+  const [tab, setTab] = useState<'home' | 'agenda' | 'ferts' | 'config'>('home');
+  const [status, setStatus] = useState<AQStatus | null>(null);
+  const [wifiDot, setWifiDot] = useState(false);
+
+  useEffect(() => {
+    // Initial fetch
+    fetch('/api/status')
+      .then((r) => r.json())
+      .then((data) => {
+        setStatus(data);
+        setWifiDot(true);
+        if (data.wifiConnected !== undefined) {
+          document.body.className = data.wifiConnected ? '' : 'ap-mode';
+          if (!data.wifiConnected) setTab('config');
+        }
+      })
+      .catch(() => setWifiDot(false));
+
+    // SSE Real-time Updates
+    const evtSource = new EventSource('/events');
+    evtSource.addEventListener('status', (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        setStatus(d);
+        setWifiDot(true);
+        if (d.wifiConnected !== undefined) {
+          document.body.className = d.wifiConnected ? '' : 'ap-mode';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    evtSource.onerror = () => setWifiDot(false);
+
+    return () => evtSource.close();
+  }, []);
+
+  return (
+    <div className="min-h-screen pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 bg-card shadow-md px-4 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            className={`h-2.5 w-2.5 flex-none rounded-full ${wifiDot ? 'bg-accent2 shadow-[0_0_8px_var(--accent2)]' : 'bg-danger shadow-[0_0_8px_var(--danger)]'
+              }`}
+          />
+          <h1 className="truncate text-base font-medium tracking-wide sm:text-lg">Aquarium Controller</h1>
+        </div>
+        <span className="flex-none font-mono text-sm tracking-widest text-accent sm:text-base">
+          {status?.time || '--:--:--'}
+        </span>
+      </div>
+
+      {/* Emergency Banner */}
+      {status?.emergency && (
+        <div className="mx-auto my-3 w-[calc(100%-24px)] max-w-[800px] animate-pulse rounded-xl border-2 border-danger bg-red-500/10 p-4 text-center">
+          ⚠️ <strong>EMERGÊNCIA</strong> — Sensor detectou risco de transbordamento! Parando bombas imediatamente.
+        </div>
+      )}
+
+      {/* Tabs Content */}
+      <div className="mx-auto grid max-w-[800px] grid-cols-1 gap-3 p-3 sm:grid-cols-2">
+        {tab === 'home' && <HomeTab status={status} />}
+        {tab === 'agenda' && <AgendaTab status={status} />}
+        {tab === 'ferts' && <FertsTab status={status} />}
+        {tab === 'config' && <ConfigTab />}
+      </div>
+
+      {/* Bottom Navigation */}
+      <nav className="tabs fixed bottom-0 left-0 right-0 z-20 flex justify-around bg-card p-2 pb-6 shadow-[0_-2px_10px_rgba(0,0,0,0.5)]">
+        {[
+          { id: 'home', icon: '🏠', label: 'Início' },
+          { id: 'agenda', icon: '📅', label: 'Agenda' },
+          { id: 'ferts', icon: '🧪', label: 'Ferts' },
+          { id: 'config', icon: '⚙️', label: 'Config' },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id as any)}
+            className={`flex flex-1 flex-col items-center gap-1 rounded-xl p-2 transition-all active:scale-95 ${tab === t.id ? 'text-accent bg-accent/10' : 'text-muted hover:bg-white/5 hover:text-text'
+              }`}
+          >
+            <span className="text-2xl drop-shadow-sm">{t.icon}</span>
+            <span className="text-xs font-medium tracking-wide">{t.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+export default App;

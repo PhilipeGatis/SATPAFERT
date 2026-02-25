@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #121212;
+  --card: #1E1E1E;
+  --accent: #90CAF9;
+  /* Material Blue 200 */
+  --accent2: #80CBC4;
+  /* Material Teal 200 */
+  --warn: #FFB74D;
+  /* Material Orange 300 */
+  --danger: #EF5350;
+  /* Material Red 400 */
+  --text: #E0E0E0;
+  --muted: #9E9E9E;
+  --border: #424242;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.stock-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent2);
+  transition: width 0.5s;
+}
+
+.stock-fill.low {
+  background: var(--warn);
+}
+
+.stock-fill.empty {
+  background: var(--danger);
+}
+
+body.ap-mode .tabs {
+  display: none !important;
+}
+
+body.ap-mode .tab-pane {
+  display: none !important;
+}
+
+/* Scrollbars invisible for cleaner touch app feel */
+::-webkit-scrollbar {
+  display: none;
+}

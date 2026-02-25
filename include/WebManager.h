@@ -26,8 +26,6 @@ public:
   void update();
 
   // ---- Schedule parameters (read by main loop) ----
-  uint8_t getFertHour() const { return _fertHour; }
-  uint8_t getFertMinute() const { return _fertMinute; }
   uint8_t getTPADay() const { return _tpaDay; }
   uint8_t getTPAHour() const { return _tpaHour; }
   uint8_t getTPAMinute() const { return _tpaMinute; }
@@ -43,8 +41,6 @@ private:
   SafetyWatchdog *_safety;
 
   // Schedule parameters
-  uint8_t _fertHour;
-  uint8_t _fertMinute;
   uint8_t _tpaDay;
   uint8_t _tpaHour;
   uint8_t _tpaMinute;
@@ -69,6 +65,8 @@ private:
   static int _extractInt(const String &json, const char *key);
   static float _extractFloat(const String &json, const char *key);
   static String _extractString(const String &json, const char *key);
+  static bool _extractFloatArray(const String &json, const char *key,
+                                 float *outArray, uint8_t expectedSize);
 
 #ifdef USE_WEBSERVER
   AsyncWebServer _server;

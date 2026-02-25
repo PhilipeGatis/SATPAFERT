@@ -1,13 +1,4 @@
-#pragma once
 
-// =============================================================================
-// Embedded Web Dashboard HTML — served at "/"
-// Dark-mode responsive dashboard for aquarium automation control
-// =============================================================================
-
-#include <Arduino.h>
-
-const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -154,14 +145,6 @@ body.ap-mode .header {pointer-events:none;}
     <!-- Schedule -->
     <div class="card" style="grid-column:1/-1">
       <h2>📅 Agendamento</h2>
-      <div class="row"><span class="label">Fertilização Diária</span><span id="fertSched">--:--</span></div>
-      <div class="input-row">
-        <input type="number" id="fertH" min="0" max="23" placeholder="HH" style="width:60px">
-        <span>:</span>
-        <input type="number" id="fertM" min="0" max="59" placeholder="MM" style="width:60px">
-        <button class="btn btn-primary" style="width:auto;margin:0;padding:8px 16px" onclick="setSchedule('fert')">Salvar ✔</button>
-      </div>
-      <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
       <div class="row"><span class="label">Horário da TPA Semanal</span><span id="tpaSched">D- --:--</span></div>
       <div class="input-row">
         <select id="tpaD" style="width:70px"><option value="0">Dom</option><option value="1">Seg</option><option value="2">Ter</option><option value="3">Qua</option><option value="4">Qui</option><option value="5">Sex</option><option value="6">Sáb</option></select>
@@ -227,7 +210,7 @@ for(let i=0; i<5; i++) {
     <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div style="font-size:.8rem;color:var(--muted);font-weight:600">CANAL ${i+1}</div>
-        <div style="font-size:1.4rem;font-weight:700" id="stock${i}">--</div>
+        <div style="font-size:1.4rem;font-weight:700;text-align:right" id="stock${i}">--</div>
       </div>
       <!-- Re-name Input -->
       <div class="input-row" style="margin-top:4px">
@@ -239,17 +222,48 @@ for(let i=0; i<5; i++) {
       
       <div style="display:flex;gap:8px">
         <div class="input-row" style="margin:0;flex:1">
-          <input type="number" id="dose${i}" step="0.5" min="0" max="50" placeholder="0.0" style="padding:6px;font-size:.8rem;text-align:right">
-          <span style="font-size:.8rem;color:var(--muted)">mL/dia</span>
-          <button class="btn btn-primary" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="setDose(${i})">Dose</button>
+          <input type="number" id="dose${i}" step="0.5" min="0" max="100" placeholder="ML/Dose" style="padding:6px;font-size:.8rem;text-align:right">
+          <button class="btn btn-primary" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="setDose(${i})">Dose a aplicar</button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
+      <div style="display:flex;gap:8px;margin-top:8px;margin-bottom:12px">
         <div class="input-row" style="margin:0;flex:1">
-          <input type="number" id="rst${i}" min="0" max="1000" placeholder="500" style="padding:6px;font-size:.8rem;text-align:right">
-          <span style="font-size:.8rem;color:var(--muted)">mL tot</span>
-          <button class="btn btn-ok" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="resetStock(${i})">Refil</button>
+          <input type="number" id="rst${i}" min="0" max="2000" placeholder="Vol Total" style="padding:6px;font-size:.8rem;text-align:right">
+          <button class="btn btn-ok" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="resetStock(${i})">Reabastecer</button>
         </div>
+      </div>
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:12px 0">
+      
+      <!-- Individual Schedule -->
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">AGENDA (Dias = <span id="sDMask${i}">Todos</span> | <span id="sTimeMask${i}">--:--</span>)</div>
+      <div class="input-row" style="margin:0 0 8px 0;flex-wrap:wrap;gap:4px">
+        <label style="font-size:.7rem"><input type="checkbox" id="d0_${i}"> D</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d1_${i}"> S</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d2_${i}"> T</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d3_${i}"> Q</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d4_${i}"> Q</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d5_${i}"> S</label>
+        <label style="font-size:.7rem"><input type="checkbox" id="d6_${i}"> S</label>
+      </div>
+      <div class="input-row" style="margin:0">
+        <input type="number" id="sH${i}" min="0" max="23" placeholder="HH" style="padding:4px;font-size:.8rem">
+        <span style="color:var(--muted)">:</span>
+        <input type="number" id="sM${i}" min="0" max="59" placeholder="MM" style="padding:4px;font-size:.8rem">
+        <button class="btn btn-ghost" style="width:auto;margin:0;padding:4px 8px;font-size:.75rem" onclick="setFertSched(${i})">Agendar</button>
+      </div>
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:12px 0">
+
+      <!-- Calibration -->
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">CALIBRAÇÃO (<span id="rateLabel${i}">--</span> mL/s)</div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        <button class="btn btn-ghost" style="padding:4px;font-size:.75rem;flex:1" onmousedown="pump(${i},1)" onmouseup="pump(${i},0)" ontouchstart="pump(${i},1)" ontouchend="pump(${i},0)">Segure = Purgar</button>
+        <button class="btn btn-ghost" style="padding:4px;font-size:.75rem;flex:1" onclick="run3s(${i})">Rodar 3s</button>
+      </div>
+      <div class="input-row" style="margin:0">
+        <input type="number" id="calMl${i}" step="0.1" min="0" placeholder="mL medidos nos 3s" style="padding:4px;font-size:.8rem">
+        <button class="btn btn-warn" style="width:auto;margin:0;padding:4px 8px;font-size:.75rem" onclick="saveCalib(${i})">Calcular</button>
       </div>
     </div>`;
 }
@@ -303,10 +317,40 @@ async function scanWiFi(btn) {
 }
 
 function setSchedule(type) {
-  if (type === 'fert') {
-    api('POST', '/api/schedule', {fertHour: +$('fertH').value, fertMinute: +$('fertM').value});
-  } else {
+  if (type === 'tpa') {
     api('POST', '/api/schedule', {tpaDay: +$('tpaD').value, tpaHour: +$('tpaH').value, tpaMinute: +$('tpaM').value});
+  }
+}
+
+function setFertSched(ch) {
+  let mask = 0;
+  for(let i=0; i<7; i++) {
+    if($(`d${i}_${ch}`).checked) mask |= (1 << i);
+  }
+  const h = +$(`sH${ch}`).value;
+  const m = +$(`sM${ch}`).value;
+  api('POST', '/api/fert/schedule', {channel: ch, days: mask, hour: h, minute: m});
+}
+
+function pump(ch, st) {
+  api('POST', '/api/fert/pump', {channel: ch, state: st});
+}
+
+function run3s(ch) {
+  if(confirm(`Ativar canal ${ch+1} por exatamente 3 segundos? Tenha um recipiente pronto para medir a saída em mL.`)) {
+    api('POST', '/api/fert/run3s', {channel: ch});
+  }
+}
+
+function saveCalib(ch) {
+  const ml = +$(`calMl${ch}`).value;
+  if (ml > 0) {
+    if(confirm(`Usar ${ml}mL como medida de calibração de 3 segundos no canal ${ch+1}?`)) {
+      api('POST', '/api/fert/calibrate', {channel: ch, ml: ml});
+      $(`calMl${ch}`).value = ''; // clear input
+    }
+  } else {
+    alert("Insira a quantidade de mL medida.");
   }
 }
 
@@ -354,22 +398,34 @@ function updateUI(d) {
   if(d.emergency) { eb.classList.add('active'); } else { eb.classList.remove('active'); }
 
   // Schedule
-  if(d.fertHour !== undefined) $('fertSched').textContent = pad(d.fertHour)+':'+pad(d.fertMinute);
   if(d.tpaDay !== undefined) {
     const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     $('tpaSched').textContent = days[d.tpaDay]+' '+pad(d.tpaHour)+':'+pad(d.tpaMinute);
   }
 
-  // Stocks and Names
+  // Stocks, Names, Schedules and Calibration
   if(d.stocks) {
     d.stocks.forEach((s, i) => {
       $('stock'+i).textContent = s.stock.toFixed(0) + ' mL';
       
-      // Only update name input if missing or not focused to avoid typing interruption
+      // Update name input if not active
       const nameInput = $('nameIn'+i);
       if(document.activeElement !== nameInput && s.name) {
         nameInput.value = s.name;
       }
+      
+      // Update schedule display strings
+      $('sTimeMask'+i).textContent = pad(s.sH)+':'+pad(s.sM);
+      const dmask = s.sD;
+      let dstr = [];
+      const ds = ['D','S','T','Q','Q','S','S'];
+      for(let j=0; j<7; j++) {
+        if (dmask & (1<<j)) dstr.push(ds[j]);
+      }
+      $('sDMask'+i).textContent = dmask === 127 ? 'Todos' : (dstr.length > 0 ? dstr.join('-') : 'Nenhum');
+
+      // Update Rate Configs
+      if(s.fR !== undefined) $('rateLabel'+i).textContent = s.fR.toFixed(2);
 
       const pct = Math.min(100, (s.stock / 500) * 100);
       const bar = $('bar'+i);
@@ -404,4 +460,3 @@ fetch('/api/status').then(r=>r.json()).then(updateUI).catch(()=>{});
 </script>
 </body>
 </html>
-)rawliteral";

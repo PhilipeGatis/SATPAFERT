@@ -45,7 +45,7 @@ void TimeManager::update() {
   }
 
   unsigned long now = millis();
-  if ((now - _lastNtpSync) >= NTP_SYNC_INTERVAL_MS) {
+  if (_lastNtpSync == 0 || (now - _lastNtpSync) >= NTP_SYNC_INTERVAL_MS) {
     syncWithNTP();
   }
 }

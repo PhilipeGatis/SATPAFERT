@@ -19,6 +19,7 @@
 #include "WaterManager.h"
 #include "WebManager.h"
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <esp_wifi.h>
 
 // ---- Global instances ----
@@ -33,6 +34,10 @@ bool fertDoneThisMinute = false; // Prevent re-triggering within same minute
 uint8_t lastFertMinute = 255;
 bool tpaDoneThisMinute = false;
 uint8_t lastTPAMinute = 255;
+
+// ---- WiFi Retry State ----
+unsigned long lastWiFiRetryTime = 0;
+const unsigned long WIFI_RETRY_INTERVAL_MS = 30000; // 30 seconds
 
 // =============================================================================
 // SETUP
@@ -51,6 +56,13 @@ void setup() {
   Serial.println("  AQUARIUM AUTOMATION - ESP32 Firmware");
   Serial.println("  v3.0.0 - Web Dashboard");
   Serial.println("==========================================\n");
+
+  // --- Step 2b: Filesystem ---
+  if (!LittleFS.begin(true)) {
+    Serial.println("[LittleFS] Mount Failed. Formatting...");
+  } else {
+    Serial.println("[LittleFS] Mounted successfully.");
+  }
 
   // --- Step 3: WiFi (must be before NTP/WebServer) ---
   Preferences wifiPref;
@@ -226,29 +238,27 @@ void loop() {
 
   // ---- 3. SERIAL COMMANDS + WEB ----
   webMgr.processSerialCommands();
+  webMgr.update(); // handle SSE and HTTP clients
 
-  // ---- 4. SCHEDULING (only if not in maintenance and not running TPA) ----
+  // ---- 4. WIFI RETRY LOGIC (Every 30 seconds) ----
+  if (WiFi.status() != WL_CONNECTED) {
+    if (millis() - lastWiFiRetryTime >= WIFI_RETRY_INTERVAL_MS) {
+      Serial.println("\n[WiFi] Connection lost/failed. Retrying connection...");
+
+      // If AP is active, we don't want to kill it, just ask STA to reconnect
+      WiFi.reconnect();
+
+      lastWiFiRetryTime = millis();
+    }
+  }
+
+  // ---- 5. SCHEDULING (only if not in maintenance and not running TPA) ----
   if (!safety.isMaintenanceMode()) {
     DateTime now = timeMgr.now();
     uint8_t currentMinute = now.minute();
 
-    // --- Fertilization schedule ---
-    uint8_t fertH = webMgr.getFertHour();
-    uint8_t fertM = webMgr.getFertMinute();
-
-    // Reset trigger flag when minute changes
-    if (currentMinute != lastFertMinute) {
-      fertDoneThisMinute = false;
-      lastFertMinute = currentMinute;
-    }
-
-    if (!fertDoneThisMinute && !waterMgr.isRunning()) {
-      if (timeMgr.isDailyScheduleTime(fertH, fertM)) {
-        Serial.println("[Main] Fertilization schedule triggered!");
-        fertMgr.checkAndDose(now, fertH, fertM);
-        fertDoneThisMinute = true;
-      }
-    }
+    // --- Fertilization schedule (Independent per Channel) ---
+    fertMgr.update(now);
 
     // --- TPA schedule ---
     uint8_t tpaD = webMgr.getTPADay();
