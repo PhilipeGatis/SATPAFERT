@@ -132,7 +132,7 @@ String WebManager::_buildStatusJSON() {
 void WebManager::_setupRoutes() {
   // ---- Dashboard HTML ----
   _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/html", DASHBOARD_HTML);
+    request->send_P(200, "text/html", DASHBOARD_HTML);
   });
 
   // ---- SSE Events ----

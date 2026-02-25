@@ -71,7 +71,15 @@ void setup() {
     Serial.print("[WiFi] IP: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println(" FAILED (will retry)");
+    Serial.println(" FAILED — starting AP mode");
+    WiFi.mode(WIFI_AP_STA); // AP + keep trying STA in background
+    WiFi.softAP(AP_SSID, AP_PASSWORD);
+    Serial.printf("[WiFi] AP started: SSID='%s' PASS='%s'\n", AP_SSID,
+                  AP_PASSWORD);
+    Serial.print("[WiFi] AP IP: ");
+    Serial.println(WiFi.softAPIP());
+    // Keep trying STA in background
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   }
 
   // --- Step 4: Safety Watchdog (sensors) ---
