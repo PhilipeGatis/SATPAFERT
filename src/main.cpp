@@ -19,6 +19,7 @@
 #include "WaterManager.h"
 #include "WebManager.h"
 #include <Arduino.h>
+#include <esp_wifi.h>
 
 // ---- Global instances ----
 SafetyWatchdog safety;
@@ -80,9 +81,30 @@ void setup() {
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
 
-  // Force legacy b/g/n and restrict to WPA2 to avoid WPA3/Mixed mode rejections
-  // (Reason 2) Some TIM routers reject fast connects, so we start cleanly
-  WiFi.begin(savedSSID.c_str(), savedPass.c_str(), 0, NULL, true);
+  // Active Scan Workaround: Force the radio to wake up and populate the BSSID
+  // cache This is a known workaround for WL_IDLE_STATUS on tricky routers
+  Serial.print(" Scanning...");
+  WiFi.scanNetworks();
+  delay(100);
+
+  // Re-attempt standard connection, relying on the ESP32's internal channel
+  // selection. CRITICAL FIX: To prevent Reason 15 (4-way handshake timeout) on
+  // TIM routers we need to set the WiFi config explicitly to disable Protected
+  // Management Frames (PMF) because the ESP32 WPA3 implementation sometimes
+  // fails to negotiate with modern mixed-mode routers.
+
+  wifi_config_t wifi_config = {};
+  strlcpy((char *)wifi_config.sta.ssid, savedSSID.c_str(),
+          sizeof(wifi_config.sta.ssid));
+  strlcpy((char *)wifi_config.sta.password, savedPass.c_str(),
+          sizeof(wifi_config.sta.password));
+
+  // Force WPA2 and Disable PMF completely to bypass the handshake hang
+  wifi_config.sta.pmf_cfg.capable = false;
+  wifi_config.sta.pmf_cfg.required = false;
+
+  esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+  WiFi.begin(savedSSID.c_str(), savedPass.c_str());
 
   {
     int attempts = 0;
