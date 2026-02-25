@@ -34,7 +34,11 @@ public:
   void setStockML(uint8_t ch, float ml);
   void resetStock(uint8_t ch, float ml);
 
-  /// Save stock levels to NVS
+  // ---- Custom Names (NVS) ----
+  String getName(uint8_t ch) const;
+  void setName(uint8_t ch, const String &name);
+
+  /// Save stock levels and names to NVS
   void saveState();
 
   /// Was today's dose already applied?
@@ -48,6 +52,9 @@ private:
 
   // Remaining stock per channel
   float _stockML[NUM_FERTS + 1];
+
+  // Custom names per channel
+  String _names[NUM_FERTS + 1];
 
   // Last dose date (day of year * 1000 + year) for dedup
   uint32_t _lastDoseKey;

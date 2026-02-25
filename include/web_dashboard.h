@@ -5,6 +5,8 @@
 // Dark-mode responsive dashboard for aquarium automation control
 // =============================================================================
 
+#include <Arduino.h>
+
 const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -16,15 +18,12 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0f1117;--card:#1a1d28;--accent:#3b82f6;--accent2:#22c55e;--warn:#f59e0b;--danger:#ef4444;--text:#e2e8f0;--muted:#64748b;--border:#2d3348}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.header{background:linear-gradient(135deg,#1e293b,#0f172a);padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.header{background:linear-gradient(135deg,#1e293b,#0f172a);padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 .header h1{font-size:1.2rem;font-weight:600}
 .header .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
 .dot.on{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
 .dot.off{background:var(--danger);box-shadow:0 0 8px var(--danger)}
-.grid{display:grid;grid-template-columns:1fr;gap:12px;padding:12px;max-width:800px;margin:0 auto}
-body.ap-mode .grid{display:block}
-body.ap-mode .card:not(#wifiCard){display:none !important}
-body.ap-mode #emergencyBanner{display:none !important}
+.grid{display:grid;grid-template-columns:1fr;gap:12px;padding:12px;max-width:800px;margin:0 auto;padding-bottom:80px}
 @media(min-width:600px){.grid{grid-template-columns:1fr 1fr}}
 .card{background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border)}
 .card h2{font-size:.85rem;text-transform:uppercase;color:var(--muted);letter-spacing:1px;margin-bottom:12px}
@@ -38,7 +37,7 @@ body.ap-mode #emergencyBanner{display:none !important}
 .badge.on{background:rgba(34,197,94,.15);color:var(--accent2)}
 .badge.off{background:rgba(100,116,139,.15);color:var(--muted)}
 .badge.alert{background:rgba(239,68,68,.15);color:var(--danger)}
-.btn{width:100%;padding:10px;border:none;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer;margin-top:6px;transition:all .2s}
+.btn{width:100%;padding:10px;border:none;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer;margin-top:6px;transition:all .2s;display:flex;justify-content:center;align-items:center;gap:6px}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:#2563eb}
 .btn-danger{background:var(--danger);color:#fff}
@@ -47,6 +46,8 @@ body.ap-mode #emergencyBanner{display:none !important}
 .btn-warn:hover{background:#d97706}
 .btn-ok{background:var(--accent2);color:#000}
 .btn-ok:hover{background:#16a34a}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:#2d3348}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .input-row{display:flex;gap:8px;align-items:center;margin-top:6px}
 .input-row input,.input-row select{flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:#131620;color:var(--text);font-size:.9rem}
@@ -56,9 +57,23 @@ body.ap-mode #emergencyBanner{display:none !important}
 .stock-fill.low{background:var(--warn)}
 .stock-fill.empty{background:var(--danger)}
 .time-display{font-size:1rem;color:var(--accent);font-family:monospace}
-.emergency-banner{background:rgba(239,68,68,.1);border:2px solid var(--danger);border-radius:12px;padding:16px;text-align:center;display:none}
+.emergency-banner{background:rgba(239,68,68,.1);border:2px solid var(--danger);border-radius:12px;padding:16px;text-align:center;display:none;margin:12px auto;max-width:800px;width:calc(100% - 24px)}
 .emergency-banner.active{display:block;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#1a1d28;border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 12px 20px 12px;z-index:20;box-shadow:0 -4px 12px rgba(0,0,0,0.5)}
+.tab-btn{background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;flex:1;padding:8px;transition:all 0.2s;border-radius:8px}
+.tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.05)}
+.tab-btn.active{color:var(--accent)}
+.tab-icon{font-size:1.4rem}
+.tab-label{font-size:0.75rem;font-weight:600}
+.tab-pane{display:none;animation:fadeIn 0.3s ease}
+.tab-pane.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+body.ap-mode .tabs {display:none !important;}
+body.ap-mode .tab-pane {display:none !important;}
+body.ap-mode #tab-config {display:block !important;}
+body.ap-mode #emergencyBanner {display:none !important;}
+body.ap-mode .header {pointer-events:none;}
 </style>
 </head>
 <body>
@@ -67,123 +82,177 @@ body.ap-mode #emergencyBanner{display:none !important}
   <span class="time-display" id="sysTime">--:--:--</span>
 </div>
 
-<div class="grid">
-  <!-- Emergency Banner -->
-  <div class="emergency-banner" id="emergencyBanner" style="grid-column:1/-1">
-    ⚠️ <strong>EMERGÊNCIA</strong> — Sensor detectou risco!
-  </div>
+<!-- Emergency Banner -->
+<div class="emergency-banner" id="emergencyBanner">
+  ⚠️ <strong>EMERGÊNCIA</strong> — Sensor detectou risco de transbordamento! Parando bombas imediatamente.
+</div>
 
-  <!-- Water Level -->
-  <div class="card">
-    <h2>💧 Nível da Água</h2>
-    <div class="val" id="waterLevel">--</div>
-    <div style="font-size:.8rem;color:var(--muted)">cm (distância ultrassônico)</div>
-    <div class="row" style="margin-top:8px">
-      <span class="label">Óptico</span>
-      <span class="badge off" id="optical">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Boia</span>
-      <span class="badge off" id="float">--</span>
-    </div>
-  </div>
+<nav class="tabs">
+  <button class="tab-btn active" onclick="switchTab('home')">
+    <span class="tab-icon">🏠</span><span class="tab-label">Início</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('agenda')">
+    <span class="tab-icon">📅</span><span class="tab-label">Agenda</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('ferts')">
+    <span class="tab-icon">🧪</span><span class="tab-label">Ferts</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('config')">
+    <span class="tab-icon">⚙️</span><span class="tab-label">Config</span>
+  </button>
+</nav>
 
-  <!-- TPA Control -->
-  <div class="card">
-    <h2>🔄 TPA (Troca Parcial)</h2>
-    <div class="row">
-      <span class="label">Estado</span>
-      <span class="badge off" id="tpaState">IDLE</span>
-    </div>
-    <div class="row">
-      <span class="label">Canister</span>
-      <span class="badge off" id="canister">OFF</span>
-    </div>
-    <button class="btn btn-primary" onclick="api('POST','/api/tpa/start')">▶ Iniciar TPA</button>
-    <button class="btn btn-danger" onclick="api('POST','/api/tpa/abort')">⏹ Abortar TPA</button>
-  </div>
-
-  <!-- Maintenance -->
-  <div class="card">
-    <h2>🔧 Manutenção</h2>
-    <div class="row">
-      <span class="label">Modo</span>
-      <span class="badge off" id="maintenance">OFF</span>
-    </div>
-    <button class="btn btn-warn" onclick="api('POST','/api/maintenance/toggle')">🔧 Alternar Manutenção</button>
-    <button class="btn btn-danger" style="margin-top:8px" onclick="api('POST','/api/emergency/stop')">🚨 Parada de Emergência</button>
-  </div>
-
-  <!-- WiFi Config -->
-  <div class="card" id="wifiCard">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <h2 style="margin:0">📶 Configurar WiFi</h2>
-      <button class="btn btn-ok" style="width:auto;padding:4px 8px;font-size:0.8rem;margin:0" onclick="scanWiFi(this)" id="btnScan">↻ Buscar</button>
-    </div>
-    <form onsubmit="saveWiFi(event)">
-      <div class="input-row" style="margin-bottom:8px">
-        <span class="label" style="width:50px">SSID</span>
-        <select id="wifiSsid" required style="flex-grow:1;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:8px;border-radius:4px">
-          <option value="" disabled selected>Clique em Buscar...</option>
-        </select>
+<!-- TAB: HOME -->
+<div id="tab-home" class="tab-pane active">
+  <div class="grid">
+    <!-- Water Level -->
+    <div class="card">
+      <h2>💧 Nível da Água</h2>
+      <div class="val" id="waterLevel">--</div>
+      <div style="font-size:.8rem;color:var(--muted)">cm (distância ultrassônico)</div>
+      <div class="row" style="margin-top:8px">
+        <span class="label">Óptico</span>
+        <span class="badge off" id="optical">--</span>
       </div>
-      <div class="input-row" style="margin-bottom:8px">
-        <span class="label" style="width:50px">Senha</span>
-        <input type="password" id="wifiPass" required style="flex-grow:1">
+      <div class="row">
+        <span class="label">Boia</span>
+        <span class="badge off" id="float">--</span>
       </div>
-      <button type="submit" class="btn btn-primary" style="margin-top:8px">💾 Salvar e Reiniciar</button>
-    </form>
-  </div>
-
-  <!-- Schedule -->
-  <div class="card">
-    <h2>📅 Agendamento</h2>
-    <div class="row"><span class="label">Fertilização</span><span id="fertSched">--:--</span></div>
-    <div class="input-row">
-      <input type="number" id="fertH" min="0" max="23" placeholder="HH" style="width:60px">
-      <span>:</span>
-      <input type="number" id="fertM" min="0" max="59" placeholder="MM" style="width:60px">
-      <button class="btn btn-primary" style="width:auto;margin:0;padding:8px 16px" onclick="setSchedule('fert')">✓</button>
     </div>
-    <div class="row" style="margin-top:12px"><span class="label">TPA</span><span id="tpaSched">D- --:--</span></div>
-    <div class="input-row">
-      <select id="tpaD" style="width:50px"><option value="0">Dom</option><option value="1">Seg</option><option value="2">Ter</option><option value="3">Qua</option><option value="4">Qui</option><option value="5">Sex</option><option value="6">Sáb</option></select>
-      <input type="number" id="tpaH" min="0" max="23" placeholder="HH" style="width:55px">
-      <span>:</span>
-      <input type="number" id="tpaM" min="0" max="59" placeholder="MM" style="width:55px">
-      <button class="btn btn-primary" style="width:auto;margin:0;padding:8px 16px" onclick="setSchedule('tpa')">✓</button>
+
+    <!-- TPA Control -->
+    <div class="card">
+      <h2>🔄 TPA (Troca Parcial)</h2>
+      <div class="row">
+        <span class="label">Estado</span>
+        <span class="badge off" id="tpaState">IDLE</span>
+      </div>
+      <div class="row">
+        <span class="label">Canister</span>
+        <span class="badge off" id="canister">OFF</span>
+      </div>
+      <button class="btn btn-primary" onclick="api('POST','/api/tpa/start')">▶ Iniciar TPA</button>
+      <button class="btn btn-danger" onclick="api('POST','/api/tpa/abort')">⏹ Abortar TPA</button>
+    </div>
+
+    <!-- Maintenance -->
+    <div class="card" style="grid-column:1/-1">
+      <h2>🔧 Manutenção</h2>
+      <div class="row">
+        <span class="label">Modo Lotação/Limpeza (30 min)</span>
+        <span class="badge off" id="maintenance">OFF</span>
+      </div>
+      <button class="btn btn-warn" onclick="api('POST','/api/maintenance/toggle')">🔧 Alternar Manutenção</button>
+      <button class="btn btn-danger" style="margin-top:8px" onclick="api('POST','/api/emergency/stop')">🚨 Parada de Emergência</button>
     </div>
   </div>
+</div>
 
-  <!-- Fertilizer Doses -->
-  <div class="card" style="grid-column:1/-1">
-    <h2>🧪 Fertilizantes</h2>
-    <div id="fertCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">
+<!-- TAB: AGENDA -->
+<div id="tab-agenda" class="tab-pane">
+  <div class="grid">
+    <!-- Schedule -->
+    <div class="card" style="grid-column:1/-1">
+      <h2>📅 Agendamento</h2>
+      <div class="row"><span class="label">Fertilização Diária</span><span id="fertSched">--:--</span></div>
+      <div class="input-row">
+        <input type="number" id="fertH" min="0" max="23" placeholder="HH" style="width:60px">
+        <span>:</span>
+        <input type="number" id="fertM" min="0" max="59" placeholder="MM" style="width:60px">
+        <button class="btn btn-primary" style="width:auto;margin:0;padding:8px 16px" onclick="setSchedule('fert')">Salvar ✔</button>
+      </div>
+      <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
+      <div class="row"><span class="label">Horário da TPA Semanal</span><span id="tpaSched">D- --:--</span></div>
+      <div class="input-row">
+        <select id="tpaD" style="width:70px"><option value="0">Dom</option><option value="1">Seg</option><option value="2">Ter</option><option value="3">Qua</option><option value="4">Qui</option><option value="5">Sex</option><option value="6">Sáb</option></select>
+        <input type="number" id="tpaH" min="0" max="23" placeholder="HH" style="width:55px">
+        <span>:</span>
+        <input type="number" id="tpaM" min="0" max="59" placeholder="MM" style="width:55px">
+        <button class="btn btn-primary" style="width:auto;margin:0;padding:8px 16px" onclick="setSchedule('tpa')">Salvar ✔</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: FERTS -->
+<div id="tab-ferts" class="tab-pane">
+  <div class="grid">
+    <div class="card" style="grid-column:1/-1">
+      <h2>🧪 Doses e Estoque</h2>
+      <div id="fertCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CONFIG -->
+<div id="tab-config" class="tab-pane">
+  <div class="grid">
+    <!-- WiFi Config -->
+    <div class="card" id="wifiCard" style="grid-column:1/-1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0">📶 Configurar WiFi</h2>
+        <button class="btn btn-ok" style="width:auto;padding:4px 8px;font-size:0.8rem;margin:0" onclick="scanWiFi(this)" id="btnScan">↻ Buscar Redes</button>
+      </div>
+      <form onsubmit="saveWiFi(event)">
+        <div class="input-row" style="margin-bottom:8px">
+          <span class="label" style="width:50px">SSID</span>
+          <select id="wifiSsid" required style="flex-grow:1;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:8px;border-radius:4px">
+            <option value="" disabled selected>Clique em Buscar...</option>
+          </select>
+        </div>
+        <div class="input-row" style="margin-bottom:8px">
+          <span class="label" style="width:50px">Senha</span>
+          <input type="password" id="wifiPass" required style="flex-grow:1">
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px">💾 Salvar e Reiniciar Placa</button>
+      </form>
     </div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const channels = ['CH1','CH2','CH3','CH4','Prime'];
 
-// Build fertilizer cards
-channels.forEach((ch, i) => {
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector(`button[onclick*="'${tabId}'"]`).classList.add('active');
+  $(`tab-${tabId}`).classList.add('active');
+}
+
+// Build fertilizer cards shell (content will be updated by telemetry)
+for(let i=0; i<5; i++) {
   $('fertCards').innerHTML += `
-    <div style="background:var(--bg);border-radius:8px;padding:10px">
-      <div style="font-size:.8rem;color:var(--muted)">${ch}</div>
-      <div style="font-size:1.2rem;font-weight:700" id="stock${i}">--</div>
-      <div class="stock-bar"><div class="stock-fill" id="bar${i}" style="width:0%"></div></div>
-      <div class="input-row" style="margin-top:6px">
-        <input type="number" id="dose${i}" step="0.5" min="0" max="50" placeholder="mL" style="width:55px;font-size:.8rem;padding:4px">
-        <button class="btn btn-primary" style="width:auto;margin:0;padding:4px 8px;font-size:.75rem" onclick="setDose(${i})">Dose</button>
+    <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:.8rem;color:var(--muted);font-weight:600">CANAL ${i+1}</div>
+        <div style="font-size:1.4rem;font-weight:700" id="stock${i}">--</div>
       </div>
-      <div class="input-row">
-        <input type="number" id="rst${i}" min="0" max="1000" placeholder="mL" style="width:55px;font-size:.8rem;padding:4px">
-        <button class="btn btn-ok" style="width:auto;margin:0;padding:4px 8px;font-size:.75rem" onclick="resetStock(${i})">Reset</button>
+      <!-- Re-name Input -->
+      <div class="input-row" style="margin-top:4px">
+        <input type="text" id="nameIn${i}" placeholder="Nome (Ex: Ferro)" style="padding:6px;font-size:.8rem;font-weight:600">
+        <button class="btn btn-ghost" style="width:auto;margin:0;padding:6px 12px;font-size:.8rem" onclick="setName(${i})">Salvar</button>
+      </div>
+
+      <div class="stock-bar" style="margin:12px 0"><div class="stock-fill" id="bar${i}" style="width:0%"></div></div>
+      
+      <div style="display:flex;gap:8px">
+        <div class="input-row" style="margin:0;flex:1">
+          <input type="number" id="dose${i}" step="0.5" min="0" max="50" placeholder="0.0" style="padding:6px;font-size:.8rem;text-align:right">
+          <span style="font-size:.8rem;color:var(--muted)">mL/dia</span>
+          <button class="btn btn-primary" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="setDose(${i})">Dose</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div class="input-row" style="margin:0;flex:1">
+          <input type="number" id="rst${i}" min="0" max="1000" placeholder="500" style="padding:6px;font-size:.8rem;text-align:right">
+          <span style="font-size:.8rem;color:var(--muted)">mL tot</span>
+          <button class="btn btn-ok" style="width:auto;margin:0;padding:6px 10px;font-size:.8rem" onclick="resetStock(${i})">Refil</button>
+        </div>
       </div>
     </div>`;
-});
+}
 
 function api(method, url, body) {
   fetch(url, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined})
@@ -251,6 +320,13 @@ function resetStock(ch) {
   if (ml > 0) api('POST', '/api/stock/reset', {channel: ch, ml: ml});
 }
 
+function setName(ch) {
+  const name = $('nameIn'+ch).value.trim();
+  if (name.length > 0) {
+    api('POST', '/api/fert/name', {channel: ch, name: name});
+  }
+}
+
 function updateUI(d) {
   // AP Mode isolation
   if(d.wifiConnected !== undefined) {
@@ -284,14 +360,23 @@ function updateUI(d) {
     $('tpaSched').textContent = days[d.tpaDay]+' '+pad(d.tpaHour)+':'+pad(d.tpaMinute);
   }
 
-  // Stocks
-  if(d.stocks) d.stocks.forEach((s, i) => {
-    $('stock'+i).textContent = s.stock.toFixed(0) + ' mL';
-    const pct = Math.min(100, (s.stock / 500) * 100);
-    const bar = $('bar'+i);
-    bar.style.width = pct + '%';
-    bar.className = 'stock-fill' + (pct < 10 ? ' empty' : pct < 20 ? ' low' : '');
-  });
+  // Stocks and Names
+  if(d.stocks) {
+    d.stocks.forEach((s, i) => {
+      $('stock'+i).textContent = s.stock.toFixed(0) + ' mL';
+      
+      // Only update name input if missing or not focused to avoid typing interruption
+      const nameInput = $('nameIn'+i);
+      if(document.activeElement !== nameInput && s.name) {
+        nameInput.value = s.name;
+      }
+
+      const pct = Math.min(100, (s.stock / 500) * 100);
+      const bar = $('bar'+i);
+      bar.style.width = pct + '%';
+      bar.className = 'stock-fill' + (pct < 10 ? ' empty' : pct < 20 ? ' low' : '');
+    });
+  }
 
   // WiFi indicator
   $('wifiDot').className = 'dot on';

@@ -68,6 +68,7 @@ private:
   // JSON helpers
   static int _extractInt(const String &json, const char *key);
   static float _extractFloat(const String &json, const char *key);
+  static String _extractString(const String &json, const char *key);
 
 #ifdef USE_WEBSERVER
   AsyncWebServer _server;

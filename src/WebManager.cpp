@@ -121,7 +121,8 @@ String WebManager::_buildStatusJSON() {
       if (i > 0)
         json += ",";
       json += "{\"stock\":" + String(_fert->getStockML(i), 0) +
-              ",\"dose\":" + String(_fert->getDoseML(i), 1) + "}";
+              ",\"dose\":" + String(_fert->getDoseML(i), 1) + ",\"name\":\"" +
+              _fert->getName(i) + "\"}";
     }
   }
   json += "]";
@@ -322,6 +323,22 @@ void WebManager::_setupRoutes() {
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
+
+  // ---- POST /api/fert/name (JSON body: {"channel": 0, "name": "Potássio"})
+  // ----
+  _server.on(
+      "/api/fert/name", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        int ch = _extractInt(body, "channel");
+        String nameStr = _extractString(body, "name");
+
+        if (ch >= 0 && ch <= 4 && nameStr.length() > 0 && _fert) {
+          _fert->setName(ch, nameStr);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
 }
 #endif
 
@@ -345,6 +362,18 @@ float WebManager::_extractFloat(const String &json, const char *key) {
     return -1;
   idx += search.length();
   return json.substring(idx).toFloat();
+}
+
+String WebManager::_extractString(const String &json, const char *key) {
+  String search = String("\"") + key + "\":\"";
+  int startIdx = json.indexOf(search);
+  if (startIdx < 0)
+    return "";
+  startIdx += search.length();
+  int endIdx = json.indexOf("\"", startIdx);
+  if (endIdx < 0)
+    return "";
+  return json.substring(startIdx, endIdx);
 }
 
 // ============================================================================

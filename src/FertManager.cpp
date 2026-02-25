@@ -13,11 +13,12 @@ void FertManager::begin() {
   Serial.println("[Fert] Manager initialized.");
   Serial.printf("[Fert] Last dose key: %u\n", _lastDoseKey);
   for (uint8_t i = 0; i < NUM_FERTS; i++) {
-    Serial.printf("[Fert] CH%d: dose=%.1f ml, stock=%.1f ml\n", i + 1,
-                  _doseML[i], _stockML[i]);
+    Serial.printf("[Fert] CH%d ('%s'): dose=%.1f ml, stock=%.1f ml\n", i + 1,
+                  _names[i].c_str(), _doseML[i], _stockML[i]);
   }
-  Serial.printf("[Fert] Prime: dose=%.1f ml, stock=%.1f ml\n",
-                _doseML[NUM_FERTS], _stockML[NUM_FERTS]);
+  Serial.printf("[Fert] Prime ('%s'): dose=%.1f ml, stock=%.1f ml\n",
+                _names[NUM_FERTS].c_str(), _doseML[NUM_FERTS],
+                _stockML[NUM_FERTS]);
 }
 
 bool FertManager::checkAndDose(DateTime now, uint8_t schedHour,
@@ -125,12 +126,33 @@ void FertManager::resetStock(uint8_t ch, float ml) {
   }
 }
 
+String FertManager::getName(uint8_t ch) const {
+  if (ch <= NUM_FERTS) {
+    return _names[ch];
+  }
+  return "";
+}
+
+void FertManager::setName(uint8_t ch, const String &name) {
+  if (ch <= NUM_FERTS) {
+    // Truncate name to save NVS space (max 15 chars)
+    String safeName = name.substring(0, 15);
+    _names[ch] = safeName;
+    saveState();
+    Serial.printf("[Fert] CH%d renamed to '%s'\n", ch + 1, safeName.c_str());
+  }
+}
+
 void FertManager::saveState() {
   _prefs.putUInt("lastDoseKey", _lastDoseKey);
   for (uint8_t i = 0; i < NUM_FERTS + 1; i++) {
-    char key[12];
-    snprintf(key, sizeof(key), "stock%d", i);
-    _prefs.putFloat(key, _stockML[i]);
+    char keyStock[12];
+    snprintf(keyStock, sizeof(keyStock), "stock%d", i);
+    _prefs.putFloat(keyStock, _stockML[i]);
+
+    char keyName[12];
+    snprintf(keyName, sizeof(keyName), "name%d", i);
+    _prefs.putString(keyName, _names[i]);
   }
 }
 
@@ -152,9 +174,15 @@ uint32_t FertManager::_dateKey(DateTime dt) const {
 void FertManager::_loadState() {
   _lastDoseKey = _prefs.getUInt("lastDoseKey", 0);
   for (uint8_t i = 0; i < NUM_FERTS + 1; i++) {
-    char key[12];
-    snprintf(key, sizeof(key), "stock%d", i);
-    _stockML[i] = _prefs.getFloat(key, DEFAULT_STOCK_ML);
+    char keyStock[12];
+    snprintf(keyStock, sizeof(keyStock), "stock%d", i);
+    _stockML[i] = _prefs.getFloat(keyStock, DEFAULT_STOCK_ML);
+
+    char keyName[12];
+    snprintf(keyName, sizeof(keyName), "name%d", i);
+    String defaultName =
+        (i < NUM_FERTS) ? String("CH") + String(i + 1) : "Prime";
+    _names[i] = _prefs.getString(keyName, defaultName);
   }
 }
 
