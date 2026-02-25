@@ -111,6 +111,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <button class="btn btn-danger" style="margin-top:8px" onclick="api('POST','/api/emergency/stop')">🚨 Parada de Emergência</button>
   </div>
 
+  <!-- WiFi Config -->
+  <div class="card">
+    <h2>📶 Configurar WiFi</h2>
+    <form onsubmit="saveWiFi(event)">
+      <div class="input-row" style="margin-bottom:8px">
+        <span class="label" style="width:50px">SSID</span>
+        <input type="text" id="wifiSsid" required style="flex-grow:1">
+      </div>
+      <div class="input-row" style="margin-bottom:8px">
+        <span class="label" style="width:50px">Senha</span>
+        <input type="password" id="wifiPass" required style="flex-grow:1">
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:8px">💾 Salvar e Reiniciar</button>
+    </form>
+  </div>
+
   <!-- Schedule -->
   <div class="card">
     <h2>📅 Agendamento</h2>
@@ -165,6 +181,18 @@ function api(method, url, body) {
   fetch(url, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined})
     .then(r => r.json()).then(d => { if(d.error) alert(d.error); })
     .catch(e => console.error(e));
+}
+
+async function saveWiFi(e) {
+  e.preventDefault();
+  const fd = new URLSearchParams();
+  fd.append('ssid', $('wifiSsid').value);
+  fd.append('pass', $('wifiPass').value);
+  try {
+    const r = await fetch('/api/wifi', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:fd });
+    if(r.ok) alert('WiFi configurado! O sistema reiniciará para conectar.');
+    else alert('Erro ao salvar WiFi.');
+  } catch(err) { alert('Erro de comunicação.'); }
 }
 
 function setSchedule(type) {

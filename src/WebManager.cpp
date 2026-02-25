@@ -191,6 +191,30 @@ void WebManager::_setupRoutes() {
                request->send(200, "application/json", "{\"ok\":true}");
              });
 
+  // ---- POST /api/wifi (Form Data: ssid, pass) ----
+  _server.on("/api/wifi", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("ssid", true) && request->hasParam("pass", true)) {
+      String ssid = request->getParam("ssid", true)->value();
+      String pass = request->getParam("pass", true)->value();
+
+      Preferences pref;
+      pref.begin("wifi", false);
+      pref.putString("ssid", ssid);
+      pref.putString("pass", pass);
+      pref.end();
+
+      Serial.println(
+          "[Web] WiFi credentials updated via dashboard. Restarting...");
+      request->send(200, "application/json", "{\"ok\":true}");
+
+      // Give the server time to send the response before rebooting
+      delay(500);
+      ESP.restart();
+    } else {
+      request->send(400, "application/json", "{\"error\":\"Missing params\"}");
+    }
+  });
+
   // ---- POST /api/schedule (JSON body) ----
   _server.on(
       "/api/schedule", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,

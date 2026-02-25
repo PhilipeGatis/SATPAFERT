@@ -52,16 +52,21 @@ void setup() {
   Serial.println("==========================================\n");
 
   // --- Step 3: WiFi (must be before NTP/WebServer) ---
-  Serial.printf("[WiFi] SSID: '%s'\n", WIFI_SSID);
-  Serial.printf("[WiFi] PASS: '%s' (len=%d)\n", WIFI_PASSWORD,
-                strlen(WIFI_PASSWORD));
+  Preferences wifiPref;
+  wifiPref.begin("wifi", true); // true = readonly
+  String savedSSID = wifiPref.getString("ssid", String(WIFI_SSID));
+  String savedPass = wifiPref.getString("pass", String(WIFI_PASSWORD));
+  wifiPref.end();
+
+  Serial.printf("[WiFi] SSID: '%s'\n", savedSSID.c_str());
+  Serial.printf("[WiFi] PASS: len=%d\n", savedPass.length());
   Serial.print("[WiFi] Connecting");
   WiFi.mode(WIFI_STA);         // Set STA mode first
   WiFi.disconnect(true, true); // Clean previous connections
   delay(100);
   WiFi.setSleep(
       false); // Disable sleep for better compatibility with some routers
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(savedSSID.c_str(), savedPass.c_str());
   {
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < 40) {
