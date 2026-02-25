@@ -61,15 +61,33 @@ void setup() {
   Serial.printf("[WiFi] SSID: '%s'\n", savedSSID.c_str());
   Serial.printf("[WiFi] PASS: len=%d\n", savedPass.length());
   Serial.print("[WiFi] Connecting");
+
+  // Add Event Listener to catch specific disconnect reasons
+  WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+      Serial.printf("\n[WiFi Event] Disconnected! Reason Code: %d\n",
+                    info.wifi_sta_disconnected.reason);
+    }
+  });
+
   WiFi.mode(WIFI_STA);         // Set STA mode first
   WiFi.disconnect(true, true); // Clean previous connections
-  delay(100);
+  delay(500);
+
+  // Advanced Router Compatibility Fixes (for TIM / Smart Routers)
   WiFi.setSleep(
       false); // Disable sleep for better compatibility with some routers
-  WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
+
+  // Force legacy b/g/n and restrict to WPA2 to avoid WPA3/Mixed mode rejections
+  // (Reason 2) Some TIM routers reject fast connects, so we start cleanly
+  WiFi.begin(savedSSID.c_str(), savedPass.c_str(), 0, NULL, true);
+
   {
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+    while (WiFi.status() != WL_CONNECTED &&
+           attempts < 60) { // Incremented timeout (Reason 39)
       delay(500);
       Serial.print(".");
       attempts++;
