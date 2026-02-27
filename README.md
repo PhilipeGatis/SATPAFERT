@@ -46,20 +46,53 @@ loop() {
 
 ---
 
-## 🔌 Hardware
+## 🔌 Hardware e Diagrama de Ligações
 
-| Componente | GPIO |
-|---|---|
-| Fertilizantes 1–4 | 13, 12, 14, 27 |
-| Prime | 26 |
-| Bomba dreno | 25 |
-| Bomba reposição | 33 |
-| Solenoide | 32 |
-| Canister (relé) | 2 |
-| Ultrassônico TRIG/ECHO | 15 / 35 |
-| Sensor óptico | 4 |
-| Boia reservatório | 5 |
-| RTC DS3231 (I2C) | 21 (SDA) / 22 (SCL) |
+### Conexões Principais (Wiring)
+
+```mermaid
+graph LR
+  subgraph Alimentacao [⚡ 12V e 5V]
+    PSU[Fonte 12V] -->|12V| MOSFET[Módulo MOSFET 8 Canais]
+    PSU -->|12V| LM2596[LM2596 Step Down]
+    LM2596 -->|5V| Cap[Capacitor Eletrolítico]
+    Cap -->|5V| ESP32[ESP32 VIN]
+    Cap -->|5V VCC| SENS[Sensores]
+  end
+
+  subgraph Sinais [🎮 ESP32 Sinais]
+    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC + OLED]
+    ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
+    ESP32 -->|D2| SSR[Omron SSR]
+    ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrassônico JSN]
+    ESP32 ---|D4| Water[Sensor Óptico]
+    ESP32 ---|D5| Float[Boia]
+  end
+
+  MOSFET -->|OUT 1 a 5| Peristalticas[5x Bombas Peristálticas]
+  MOSFET -->|OUT 6| Diaphragm[Bomba Dreno]
+  MOSFET -->|OUT 7| WaterPump[Bomba Reposição]
+  MOSFET -->|OUT 8| Solenoid[Solenoide]
+```
+
+### Pinout Detalhado (ESP32)
+
+| Componente | Pino ESP32 | Detalhe |
+|---|---|---|
+| **MOSFET IN1** (Peristáltica 1) | `D13` | - |
+| **MOSFET IN2** (Peristáltica 2) | `D12` | - |
+| **MOSFET IN3** (Peristáltica 3) | `D14` | - |
+| **MOSFET IN4** (Peristáltica 4) | `D27` | - |
+| **MOSFET IN5** (Peristáltica 5) | `D26` | - |
+| **MOSFET IN6** (Dreno) | `D25` | - |
+| **MOSFET IN7** (Reposição) | `D33` | - |
+| **MOSFET IN8** (Solenoide) | `D32` | - |
+| **Omron SSR / Filtro AC** | `D2` | CH1 |
+| **Ultrassônico JSN-SR04T** | `D18` (Trig), `D19` (Echo) | 5V via LM2596/Capacitor |
+| **Sensor Óptico (Nível)** | `D4` (Data) | INPUT_PULLUP, active LOW |
+| **Boia (Float Switch)** | `D5` (Wire1) | Wire2 ao GND, INPUT_PULLUP |
+| **I2C SDA** (RTC / OLED) | `D21` | - |
+| **I2C SCL** (RTC / OLED) | `D22` | - |
 
 ---
 
