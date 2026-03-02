@@ -66,6 +66,40 @@ loop() {
 }
 ```
 
+### 🔄 Water Change (TPA) Flow
+
+The TPA is a 6-state state machine that runs non-blocking inside the main loop. Each state has a configurable timeout for safety.
+
+```mermaid
+stateDiagram-v2
+    [*] --> CANISTER_OFF: startTPA()
+    CANISTER_OFF --> DRAINING: 3s settle
+    DRAINING --> FILLING_RESERVOIR: level reached
+    FILLING_RESERVOIR --> DOSING_PRIME: float switch
+    DOSING_PRIME --> REFILLING: 2s mix
+    REFILLING --> CANISTER_ON: level reached
+    CANISTER_ON --> [*]: COMPLETE
+
+    DRAINING --> ERROR: timeout
+    FILLING_RESERVOIR --> ERROR: timeout
+    REFILLING --> ERROR: timeout / optical sensor
+    ERROR --> [*]: all actuators OFF
+```
+
+| Step | State | What happens |
+|---|---|---|
+| 1 | **CANISTER_OFF** | Canister filter is turned off (SSR relay HIGH). Waits 3 seconds for water to settle so the ultrasonic sensor gets a stable reading. |
+| 2 | **DRAINING** | Drain pump turns on. Ultrasonic sensor monitors the water level. Pump runs until the target level is reached (e.g. 10 cm drop). Flow rate is measured inline for auto-calibration. |
+| 3 | **FILLING_RESERVOIR** | Solenoid valve opens to fill the reservoir with tap water. Float switch monitors reservoir level. Valve closes when reservoir is full. |
+| 4 | **DOSING_PRIME** | Peristaltic pump doses dechlorinator (Prime) into the reservoir. Waits 2 seconds for mixing. Stock level is deducted and saved to NVS. |
+| 5 | **REFILLING** | Refill pump turns on, pumping treated water from reservoir into the aquarium. Stops when ultrasonic sensor reaches the original level OR optical sensor detects max level (safety cutoff). Flow rate is measured for calibration. |
+| 6 | **CANISTER_ON** | Canister filter is turned back on. **TPA cycle complete.** Calibrated flow rates are saved to NVS for next TPA. |
+
+**Safety at every step:**
+- Each state has a **dynamic timeout** calculated from calibrated flow rates (`volume / flow × 1.5`). First TPA uses safe defaults: **30s drain, 15s refill**.
+- The **optical sensor** acts as a hardware-level safety cutoff during refill — immediate stop regardless of ultrasonic reading.
+- **Emergency abort** at any point turns off all actuators and restores the canister filter.
+
 ---
 
 ## 🔌 Hardware Overview
