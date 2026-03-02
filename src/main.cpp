@@ -13,7 +13,9 @@
 // =============================================================================
 
 #include "Config.h"
+#include "DisplayManager.h"
 #include "FertManager.h"
+#include "NotifyManager.h"
 #include "SafetyWatchdog.h"
 #include "TimeManager.h"
 #include "WaterManager.h"
@@ -28,12 +30,17 @@ TimeManager timeMgr;
 WaterManager waterMgr;
 FertManager fertMgr;
 WebManager webMgr;
+DisplayManager displayMgr;
+NotifyManager notifyMgr;
 
 // ---- Scheduling state ----
 bool fertDoneThisMinute = false; // Prevent re-triggering within same minute
 uint8_t lastFertMinute = 255;
 bool tpaDoneThisMinute = false;
 uint8_t lastTPAMinute = 255;
+bool emergencyNotified = false;   // Prevent repeated emergency notifications
+bool tpaCompleteNotified = false; // Prevent repeated TPA complete notifications
+bool tpaErrorNotified = false;    // Prevent repeated TPA error notifications
 
 // ---- WiFi Retry State ----
 unsigned long lastWiFiRetryTime = 0;
@@ -209,13 +216,19 @@ void setup() {
   waterMgr.begin(&safety, &fertMgr);
 
   // --- Step 7: Web Dashboard + Serial UI ---
-  webMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety);
+  webMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety, &notifyMgr);
+
+  // --- Step 7b: OLED Display ---
+  displayMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety, &webMgr);
 
   // --- Step 8: Canister filter ON by default ---
-  digitalWrite(PIN_CANISTER, HIGH);
-  Serial.println("[Main] Canister filter ON (default).");
+  digitalWrite(PIN_CANISTER, LOW); // SSR: LOW = relay ON
+  Serial.println("[Main] Canister filter ON (default).\n");
 
-  Serial.println("\n[Main] === System Ready ===\n");
+  // --- Step 9: Notifications ---
+  notifyMgr.begin();
+
+  Serial.println("[Main] === System Ready ===\n");
 }
 
 // =============================================================================
@@ -227,10 +240,16 @@ void loop() {
 
   // If in emergency, skip all scheduling and just process commands
   if (safety.isEmergency()) {
+    if (!emergencyNotified) {
+      notifyMgr.notifyEmergency("Sistema em estado de emergência!");
+      emergencyNotified = true;
+    }
     webMgr.processSerialCommands();
     webMgr.update(); // keep web server alive
     delay(100);
     return;
+  } else {
+    emergencyNotified = false;
   }
 
   // ---- 2. TIME SYNC (periodic NTP re-sync) ----
@@ -259,6 +278,22 @@ void loop() {
 
     // --- Fertilization schedule (Independent per Channel) ---
     fertMgr.update(now);
+
+    // --- Check low stock after fertilization ---
+    for (uint8_t ch = 0; ch < NUM_FERTS + 1; ch++) {
+      if (fertMgr.isLowStock(ch)) {
+        notifyMgr.notifyFertLowStock(ch, fertMgr.getStockML(ch),
+                                     fertMgr.getLowStockThreshold(ch));
+      }
+    }
+
+    // --- Notifications: daily level report + midnight reset ---
+    notifyMgr.update(now.hour(), now.minute());
+    if (now.hour() == notifyMgr.getDailyReportHour() &&
+        now.minute() == notifyMgr.getDailyReportMinute()) {
+      float level = safety.getLastDistance();
+      notifyMgr.notifyDailyLevel(level);
+    }
 
     // --- TPA schedule ---
     if (currentMinute != lastTPAMinute) {
@@ -322,14 +357,30 @@ void loop() {
   // ---- 5. TPA STATE MACHINE ----
   waterMgr.update();
 
-  // If TPA just completed, record timestamp
+  // If TPA just completed, record timestamp and notify
   if (waterMgr.getState() == TPAState::COMPLETE) {
     waterMgr.setLastTPATime(timeMgr.getFormattedTime());
+    if (!tpaCompleteNotified) {
+      notifyMgr.notifyTPAComplete();
+      tpaCompleteNotified = true;
+    }
+  } else if (waterMgr.getState() == TPAState::ERROR) {
+    if (!tpaErrorNotified) {
+      notifyMgr.notifyTPAError("Timeout ou falha durante o ciclo TPA.");
+      tpaErrorNotified = true;
+    }
+  } else if (waterMgr.isRunning()) {
+    // Reset flags while TPA is actively running
+    tpaCompleteNotified = false;
+    tpaErrorNotified = false;
   }
 
   // ---- 6. WEB DASHBOARD + TELEMETRY ----
   webMgr.update();
 
-  // ---- 7. YIELD ----
+  // ---- 7. OLED DISPLAY ----
+  displayMgr.update();
+
+  // ---- 8. YIELD ----
   delay(50); // ~20 Hz loop, fast enough for safety, gentle on CPU
 }

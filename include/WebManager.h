@@ -8,6 +8,7 @@ class TimeManager;
 class WaterManager;
 class FertManager;
 class SafetyWatchdog;
+class NotifyManager;
 
 #ifdef USE_WEBSERVER
 #include <ESPAsyncWebServer.h>
@@ -20,7 +21,7 @@ public:
 
   /// Initialize web server and serial UI
   void begin(TimeManager *time, WaterManager *water, FertManager *fert,
-             SafetyWatchdog *safety);
+             SafetyWatchdog *safety, NotifyManager *notify);
 
   /// Run web server + update telemetry (call from loop)
   void update();
@@ -57,6 +58,7 @@ private:
   WaterManager *_water;
   FertManager *_fert;
   SafetyWatchdog *_safety;
+  NotifyManager *_notify;
 
   // Schedule parameters
   uint16_t _tpaInterval;

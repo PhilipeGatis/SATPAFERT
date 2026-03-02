@@ -1,5 +1,6 @@
 #include "WebManager.h"
 #include "FertManager.h"
+#include "NotifyManager.h"
 #include "SafetyWatchdog.h"
 #include "TimeManager.h"
 #include "WaterManager.h"
@@ -35,11 +36,13 @@ WebManager::WebManager()
 // ============================================================================
 
 void WebManager::begin(TimeManager *time, WaterManager *water,
-                       FertManager *fert, SafetyWatchdog *safety) {
+                       FertManager *fert, SafetyWatchdog *safety,
+                       NotifyManager *notify) {
   _time = time;
   _water = water;
   _fert = fert;
   _safety = safety;
+  _notify = notify;
 
   _loadParams();
 
@@ -165,6 +168,34 @@ String WebManager::_buildStatusJSON() {
     }
   }
   json += "]";
+
+  // Notify status
+  if (_notify) {
+    json += ",\"notify\":{";
+    json +=
+        "\"enabled\":" + String(_notify->isEnabled() ? "true" : "false") + ",";
+    json += "\"dailyCount\":" + String(_notify->getDailyCount()) + ",";
+    json += "\"reportHour\":" + String(_notify->getDailyReportHour()) + ",";
+    json += "\"reportMinute\":" + String(_notify->getDailyReportMinute()) + ",";
+    json += "\"types\":[";
+    for (uint8_t i = 0; i < NOTIFY_TYPE_COUNT; i++) {
+      if (i > 0)
+        json += ",";
+      json += _notify->isTypeEnabled((NotifyType)i) ? "true" : "false";
+    }
+    json += "]}";
+  }
+
+  // Low stock thresholds
+  if (_fert) {
+    json += ",\"lowStockThresholds\":[";
+    for (uint8_t i = 0; i < NUM_FERTS + 1; i++) {
+      if (i > 0)
+        json += ",";
+      json += String(_fert->getLowStockThreshold(i), 0);
+    }
+    json += "]";
+  }
 
   json += "}";
   return json;
@@ -490,6 +521,13 @@ void WebManager::_setupRoutes() {
           Serial.printf("[Web] CH%d Schedule updated -> time: %02d:%02d\n",
                         ch + 1, h, m);
         }
+
+        // Low stock threshold (optional)
+        float lt = _extractFloat(body, "lowStockThreshold");
+        if (lt >= 0 && ch >= 0 && ch <= 4 && _fert) {
+          _fert->setLowStockThreshold(ch, lt);
+        }
+
         request->send(200, "application/json", "{\"ok\":true}");
       });
 
@@ -606,6 +644,90 @@ void WebManager::_setupRoutes() {
         }
         request->send(200, "application/json", "{\"ok\":true}");
       });
+
+  // ---- GET /api/notify/status ----
+  _server.on(
+      "/api/notify/status", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        if (!_notify) {
+          request->send(200, "application/json", "{\"enabled\":false}");
+          return;
+        }
+        String json = "{";
+        json +=
+            "\"enabled\":" + String(_notify->isEnabled() ? "true" : "false") +
+            ",";
+        // Mask key for security
+        String key = _notify->getPrivateKey();
+        if (key.length() > 4) {
+          key = key.substring(0, 4) + "****";
+        }
+        json += "\"key\":\"" + key + "\",";
+        json += "\"dailyCount\":" + String(_notify->getDailyCount()) + ",";
+        json += "\"reportHour\":" + String(_notify->getDailyReportHour()) + ",";
+        json +=
+            "\"reportMinute\":" + String(_notify->getDailyReportMinute()) + ",";
+        json += "\"types\":[";
+        for (uint8_t i = 0; i < NOTIFY_TYPE_COUNT; i++) {
+          if (i > 0)
+            json += ",";
+          json += _notify->isTypeEnabled((NotifyType)i) ? "true" : "false";
+        }
+        json += "]}";
+        request->send(200, "application/json", json);
+      });
+
+  // ---- POST /api/notify/key ----
+  _server.on(
+      "/api/notify/key", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        String body = String((char *)data).substring(0, len);
+        String key = _extractString(body, "key");
+        if (_notify) {
+          _notify->setPrivateKey(key);
+        }
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/notify/config ----
+  _server.on(
+      "/api/notify/config", HTTP_POST, [](AsyncWebServerRequest *request) {},
+      NULL,
+      [this](AsyncWebServerRequest *request, uint8_t *data, size_t len,
+             size_t index, size_t total) {
+        if (!_notify) {
+          request->send(200, "application/json", "{\"ok\":true}");
+          return;
+        }
+        String body = String((char *)data).substring(0, len);
+
+        // Per-type toggles
+        const char *typeKeys[] = {"tpaComplete", "tpaError",     "fertLowStock",
+                                  "emergency",   "fertComplete", "dailyLevel"};
+        for (uint8_t i = 0; i < NOTIFY_TYPE_COUNT; i++) {
+          int val = _extractInt(body, typeKeys[i]);
+          if (val == 0 || val == 1) {
+            _notify->setTypeEnabled((NotifyType)i, val == 1);
+          }
+        }
+
+        // Daily report time
+        int rH = _extractInt(body, "reportHour");
+        int rM = _extractInt(body, "reportMinute");
+        if (rH >= 0 && rH <= 23 && rM >= 0 && rM <= 59) {
+          _notify->setDailyReportHour(rH, rM);
+        }
+
+        request->send(200, "application/json", "{\"ok\":true}");
+      });
+
+  // ---- POST /api/notify/test ----
+  _server.on("/api/notify/test", HTTP_POST,
+             [this](AsyncWebServerRequest *request) {
+               if (_notify)
+                 _notify->sendTest();
+               request->send(200, "application/json", "{\"ok\":true}");
+             });
 }
 #endif
 
@@ -827,16 +949,49 @@ void WebManager::processSerialCommands() {
       Serial.printf("[CMD] Refill target set to %.1f cm\n", cm);
     }
   } else if (cmd == "canister_on") {
-    digitalWrite(PIN_CANISTER, HIGH);
+    digitalWrite(PIN_CANISTER, LOW); // SSR: LOW = ON
     Serial.println("[CMD] Canister ON.");
   } else if (cmd == "canister_off") {
-    digitalWrite(PIN_CANISTER, LOW);
+    digitalWrite(PIN_CANISTER, HIGH); // SSR: HIGH = OFF
     Serial.println("[CMD] Canister OFF.");
   } else if (cmd == "emergency_stop") {
     if (_safety)
       _safety->emergencyShutdown();
+  } else if (cmd.startsWith("pushsafer_key ")) {
+    String key = cmd.substring(14);
+    key.trim();
+    if (_notify) {
+      _notify->setPrivateKey(key);
+      Serial.printf("[CMD] Pushsafer key %s.\n",
+                    key.length() > 0 ? "set" : "cleared");
+    }
+  } else if (cmd == "test_notify") {
+    if (_notify) {
+      _notify->sendTest();
+    } else {
+      Serial.println("[CMD] NotifyManager not available.");
+    }
+  } else if (cmd == "notify_config") {
+    if (_notify) {
+      Serial.println("--- Notification Config ---");
+      Serial.printf("  Pushsafer: %s\n",
+                    _notify->isEnabled() ? "ENABLED" : "DISABLED");
+      Serial.printf("  Daily report: %02d:%02d\n",
+                    _notify->getDailyReportHour(),
+                    _notify->getDailyReportMinute());
+      Serial.printf("  Today's count: %d/%d\n", _notify->getDailyCount(), 20);
+      const char *names[] = {"TPA OK",     "TPA Erro", "Estoque",
+                             "Emergência", "Fert OK",  "Nível Diário"};
+      for (uint8_t i = 0; i < NOTIFY_TYPE_COUNT; i++) {
+        Serial.printf("  [%c] %s\n",
+                      _notify->isTypeEnabled((NotifyType)i) ? 'X' : ' ',
+                      names[i]);
+      }
+      Serial.println("---------------------------");
+    }
   } else {
-    Serial.printf("[CMD] Unknown: '%s'. Type 'help'.\n", cmd.c_str());
+    Serial.printf("[CMD] Unknown: '%s'. Type 'help' for commands.\n",
+                  cmd.c_str());
   }
 }
 
@@ -845,22 +1000,22 @@ void WebManager::processSerialCommands() {
 // ============================================================================
 
 void WebManager::_printHelp() {
-  Serial.println("\n--- Serial Commands ---");
-  Serial.println("  help / ?          - Show this help");
-  Serial.println("  status            - Print full system status");
-  Serial.println("  tpa               - Start TPA cycle now");
-  Serial.println("  abort             - Abort current TPA");
-  Serial.println("  maint             - Toggle maintenance mode (30 min)");
-  Serial.println("  fert_time HH:MM  - Set fertilization schedule");
-  Serial.println("  tpa_interval IN  - Set TPA schedule (days)");
-  Serial.println("  dose CH ML       - Set dose for CH 1-4 (ml)");
-  Serial.println("  reset_stock CH ML - Reset stock CH 1-5 (5=prime)");
-  Serial.println("  set_drain CM     - Set drain target (cm)");
-  Serial.println("  set_refill CM    - Set refill target (cm)");
-  Serial.println("  drain_target      - Read current ultrasonic distance");
-  Serial.println("  canister_on/off   - Manual canister control");
-  Serial.println("  emergency_stop    - Shutdown all outputs");
-  Serial.println("------------------------\n");
+  Serial.println("\n=== SERIAL COMMANDS ===");
+  Serial.println("  help          — This menu");
+  Serial.println("  status        — System status");
+  Serial.println("  tpa           — Start TPA");
+  Serial.println("  abort         — Abort TPA");
+  Serial.println("  maint         — Toggle maintenance mode");
+  Serial.println("  tpa_interval N — Set TPA interval (days)");
+  Serial.println("  reset_stock CH ML — Reset stock channel CH");
+  Serial.println("  set_drain CM  — Set drain target");
+  Serial.println("  set_refill CM — Set refill target");
+  Serial.println("  canister_on/off — Canister relay");
+  Serial.println("  emergency_stop — All outputs OFF");
+  Serial.println("  pushsafer_key KEY — Set Pushsafer key");
+  Serial.println("  test_notify   — Send test notification");
+  Serial.println("  notify_config — Show notification config");
+  Serial.println("========================\n");
 }
 
 void WebManager::_printStatus() {
