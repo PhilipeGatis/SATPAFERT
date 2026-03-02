@@ -31,7 +31,11 @@ WaterManager::WaterManager()
     : _state(TPAState::IDLE), _safety(nullptr), _fert(nullptr),
       _stateStartMs(0), _waitUntilMs(0), _doseCompleted(false),
       _drainTargetCm(LEVEL_DRAIN_TARGET_CM),
-      _refillTargetCm(LEVEL_REFILL_TARGET_CM), _primeML(DEFAULT_PRIME_ML) {}
+      _refillTargetCm(LEVEL_REFILL_TARGET_CM), _primeML(DEFAULT_PRIME_ML),
+      _timeoutDrainMs(30UL * 1000),  // 30s safe default (uncalibrated)
+      _timeoutRefillMs(15UL * 1000), // 15s safe default (uncalibrated)
+      _litersPerCm(0), _calStartLevel(0), _calStartMs(0), _drainFlowLPM(0),
+      _refillFlowLPM(0) {}
 
 void WaterManager::begin(SafetyWatchdog *safety, FertManager *fert) {
   _safety = safety;
@@ -145,6 +149,11 @@ void WaterManager::_handleDraining() {
     // Start drain pump on first tick
     digitalWrite(PIN_DRAIN, HIGH);
     Serial.printf("[TPA] Drain pump ON. Target: %.1f cm\n", _drainTargetCm);
+    // Record calibration start point
+    if (_safety && _litersPerCm > 0) {
+      _calStartLevel = _safety->readUltrasonic();
+      _calStartMs = millis();
+    }
   }
 
   // Read ultrasonic
@@ -154,13 +163,39 @@ void WaterManager::_handleDraining() {
       // Target reached (higher distance = lower water)
       Serial.printf("[TPA] Drain target reached: %.1f cm\n", dist);
       digitalWrite(PIN_DRAIN, LOW);
+
+      // Inline calibration: calculate drain flow rate
+      if (_calStartMs > 0 && _litersPerCm > 0) {
+        float deltaLevel = dist - _calStartLevel; // cm drained
+        float deltaLiters = deltaLevel * _litersPerCm;
+        float deltaMinutes = (float)(millis() - _calStartMs) / 60000.0f;
+        if (deltaMinutes > 0.1f && deltaLiters > 0.1f) {
+          _drainFlowLPM = deltaLiters / deltaMinutes;
+          Serial.printf(
+              "[TPA] Drain calibrated: %.2f L/min (%.1fL in %.1fmin)\n",
+              _drainFlowLPM, deltaLiters, deltaMinutes);
+        }
+      }
+
       _enterState(TPAState::FILLING_RESERVOIR);
       return;
     }
   }
 
-  // Timeout check
-  if (_stateElapsed() >= TIMEOUT_DRAIN_MS) {
+  // Timeout check (uses dynamic timeout)
+  if (_stateElapsed() >= _timeoutDrainMs) {
+    // Even on timeout, capture partial calibration data
+    if (_safety && _calStartMs > 0 && _litersPerCm > 0) {
+      float dist = _safety->readUltrasonic();
+      float deltaLevel = dist - _calStartLevel;
+      float deltaLiters = deltaLevel * _litersPerCm;
+      float deltaMinutes = (float)(millis() - _calStartMs) / 60000.0f;
+      if (deltaMinutes > 0.1f && deltaLiters > 0.1f) {
+        _drainFlowLPM = deltaLiters / deltaMinutes;
+        Serial.printf("[TPA] Drain calibrated on timeout: %.2f L/min\n",
+                      _drainFlowLPM);
+      }
+    }
     _error("Drain timeout exceeded!");
     return;
   }
@@ -221,12 +256,18 @@ void WaterManager::_handleRefilling() {
   if (digitalRead(PIN_REFILL) == LOW) {
     digitalWrite(PIN_REFILL, HIGH);
     Serial.printf("[TPA] Refill pump ON. Target: %.1f cm\n", _refillTargetCm);
+    // Record calibration start point
+    if (_safety && _litersPerCm > 0) {
+      _calStartLevel = _safety->readUltrasonic();
+      _calStartMs = millis();
+    }
   }
 
   // CRITICAL SAFETY: Optical sensor = immediate stop
   if (_safety && _safety->isOpticalHigh()) {
     Serial.println("[TPA] Optical sensor HIGH — refill STOPPED (max level).");
     digitalWrite(PIN_REFILL, LOW);
+    _captureRefillCalibration();
     _enterState(TPAState::CANISTER_ON);
     return;
   }
@@ -237,14 +278,16 @@ void WaterManager::_handleRefilling() {
     if (dist > 0 && dist <= _refillTargetCm) {
       Serial.printf("[TPA] Refill setpoint reached: %.1f cm\n", dist);
       digitalWrite(PIN_REFILL, LOW);
+      _captureRefillCalibration();
       _enterState(TPAState::CANISTER_ON);
       return;
     }
   }
 
-  // Timeout check
-  if (_stateElapsed() >= TIMEOUT_REFILL_MS) {
+  // Timeout check (uses dynamic timeout)
+  if (_stateElapsed() >= _timeoutRefillMs) {
     digitalWrite(PIN_REFILL, LOW);
+    _captureRefillCalibration();
     _error("Refill timeout exceeded!");
     return;
   }
@@ -256,6 +299,21 @@ void WaterManager::_handleCanisterOn() {
   Serial.println("[TPA] Canister ON. TPA cycle COMPLETE.");
 
   _state = TPAState::COMPLETE;
+}
+
+void WaterManager::_captureRefillCalibration() {
+  if (_calStartMs > 0 && _litersPerCm > 0 && _safety) {
+    float dist = _safety->readUltrasonic();
+    float deltaLevel =
+        _calStartLevel - dist; // cm refilled (level goes DOWN = closer)
+    float deltaLiters = deltaLevel * _litersPerCm;
+    float deltaMinutes = (float)(millis() - _calStartMs) / 60000.0f;
+    if (deltaMinutes > 0.1f && deltaLiters > 0.1f) {
+      _refillFlowLPM = deltaLiters / deltaMinutes;
+      Serial.printf("[TPA] Refill calibrated: %.2f L/min (%.1fL in %.1fmin)\n",
+                    _refillFlowLPM, deltaLiters, deltaMinutes);
+    }
+  }
 }
 
 void WaterManager::_error(const char *msg) {

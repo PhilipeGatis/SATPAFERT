@@ -224,6 +224,28 @@ void setup() {
   // --- Step 6: Water Manager (TPA state machine) ---
   waterMgr.begin(&safety, &fertMgr);
 
+  // Load calibrated pump flow rates from NVS
+  {
+    Preferences calPref;
+    calPref.begin("pumpcal", true); // read-only
+    float drainLPM = calPref.getFloat("drainLPM", 0);
+    float refillLPM = calPref.getFloat("refillLPM", 0);
+    calPref.end();
+    if (drainLPM > 0) {
+      waterMgr.setDrainFlowLPM(drainLPM);
+      Serial.printf("[Main] Loaded drain calibration: %.2f L/min\n", drainLPM);
+    }
+    if (refillLPM > 0) {
+      waterMgr.setRefillFlowLPM(refillLPM);
+      Serial.printf("[Main] Loaded refill calibration: %.2f L/min\n",
+                    refillLPM);
+    }
+    if (drainLPM <= 0 && refillLPM <= 0) {
+      Serial.println(
+          "[Main] No pump calibration found. Using safe defaults (30s/15s).");
+    }
+  }
+
   // --- Step 7: Web Dashboard + Serial UI ---
   webMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety, &notifyMgr);
 
@@ -387,6 +409,24 @@ void loop() {
             float cmToDrain = (lPerCm > 0) ? drainLiters / lPerCm : 0;
             waterMgr.setDrainTargetCm(currentLevel + cmToDrain);
             waterMgr.setRefillTargetCm(currentLevel);
+            waterMgr.setLitersPerCm(lPerCm); // For inline calibration
+
+            // Dynamic timeouts (if calibrated)
+            float drainLPM = waterMgr.getDrainFlowLPM();
+            float refillLPM = waterMgr.getRefillFlowLPM();
+            if (drainLPM > 0) {
+              unsigned long t =
+                  (unsigned long)((drainLiters / drainLPM) * 1.5f * 60000.0f);
+              waterMgr.setTimeoutDrainMs(t);
+              Serial.printf("[Main] Drain timeout: %lums (calibrated)\n", t);
+            }
+            if (refillLPM > 0) {
+              unsigned long t =
+                  (unsigned long)((drainLiters / refillLPM) * 1.5f * 60000.0f);
+              waterMgr.setTimeoutRefillMs(t);
+              Serial.printf("[Main] Refill timeout: %lums (calibrated)\n", t);
+            }
+
             Serial.printf(
                 "[Main] TPA: %.1f L = %.1f cm, drain to %.1f, refill to %.1f\n",
                 drainLiters, cmToDrain, currentLevel + cmToDrain, currentLevel);
@@ -402,9 +442,23 @@ void loop() {
   // ---- 5. TPA STATE MACHINE ----
   waterMgr.update();
 
-  // If TPA just completed, record timestamp and notify
+  // If TPA just completed, record timestamp, save calibration, and notify
   if (waterMgr.getState() == TPAState::COMPLETE) {
     waterMgr.setLastTPATime(timeMgr.getFormattedTime());
+
+    // Save calibrated flow rates for next TPA
+    if (waterMgr.getDrainFlowLPM() > 0 || waterMgr.getRefillFlowLPM() > 0) {
+      Preferences calPref;
+      calPref.begin("pumpcal", false);
+      if (waterMgr.getDrainFlowLPM() > 0)
+        calPref.putFloat("drainLPM", waterMgr.getDrainFlowLPM());
+      if (waterMgr.getRefillFlowLPM() > 0)
+        calPref.putFloat("refillLPM", waterMgr.getRefillFlowLPM());
+      calPref.end();
+      Serial.printf("[Main] Calibration saved: drain=%.2f refill=%.2f L/min\n",
+                    waterMgr.getDrainFlowLPM(), waterMgr.getRefillFlowLPM());
+    }
+
     if (!tpaCompleteNotified) {
       notifyMgr.notifyTPAComplete();
       tpaCompleteNotified = true;

@@ -58,6 +58,18 @@ public:
   float getRefillTargetCm() const { return _refillTargetCm; }
   float getPrimeML() const { return _primeML; }
 
+  // ---- Dynamic timeouts ----
+  void setTimeoutDrainMs(unsigned long ms) { _timeoutDrainMs = ms; }
+  void setTimeoutRefillMs(unsigned long ms) { _timeoutRefillMs = ms; }
+
+  // ---- Calibration / Flow rates ----
+  void setLitersPerCm(float lpc) { _litersPerCm = lpc; }
+  void setDrainFlowLPM(float lpm) { _drainFlowLPM = lpm; }
+  void setRefillFlowLPM(float lpm) { _refillFlowLPM = lpm; }
+  float getDrainFlowLPM() const { return _drainFlowLPM; }
+  float getRefillFlowLPM() const { return _refillFlowLPM; }
+  bool isCalibrated() const { return _drainFlowLPM > 0 && _refillFlowLPM > 0; }
+
   /// Canister filter state
   bool isCanisterOn() const {
     return digitalRead(PIN_CANISTER) == LOW;
@@ -85,6 +97,17 @@ private:
   float _refillTargetCm;
   float _primeML;
 
+  // Dynamic timeouts (initialized from Config.h, updated after calibration)
+  unsigned long _timeoutDrainMs;
+  unsigned long _timeoutRefillMs;
+
+  // Inline calibration (measured during TPA)
+  float _litersPerCm;        // Aquarium litersPerCm (set by main before TPA)
+  float _calStartLevel;      // Ultrasonic level at state entry (cm)
+  unsigned long _calStartMs; // millis() at state entry
+  float _drainFlowLPM;       // Calibrated drain flow rate (L/min)
+  float _refillFlowLPM;      // Calibrated refill flow rate (L/min)
+
   // Telemetry
   String _lastTPATime;
 
@@ -96,6 +119,9 @@ private:
   void _handleDosingPrime();
   void _handleRefilling();
   void _handleCanisterOn();
+
+  /// Capture refill flow rate from inline calibration data
+  void _captureRefillCalibration();
 
   /// Elapsed time in current state (ms)
   unsigned long _stateElapsed() const { return millis() - _stateStartMs; }
