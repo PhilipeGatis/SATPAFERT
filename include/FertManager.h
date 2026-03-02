@@ -58,6 +58,11 @@ public:
   void setStockML(uint8_t ch, float ml);
   void resetStock(uint8_t ch, float ml);
 
+  // ---- Low stock threshold (per channel, NVS) ----
+  void setLowStockThreshold(uint8_t ch, float ml);
+  float getLowStockThreshold(uint8_t ch) const;
+  bool isLowStock(uint8_t ch) const;
+
   // ---- PWM Control (NVS) ----
   void setPWM(uint8_t ch, uint8_t pwm);
   uint8_t getPWM(uint8_t ch) const {
@@ -89,6 +94,9 @@ private:
 
   // Last dose date (day of year * 1000 + year) for dedup (per channel)
   uint32_t _lastDoseKey[NUM_FERTS + 1];
+
+  // Low stock warning threshold per channel (mL)
+  float _lowStockThreshold[NUM_FERTS + 1];
 
   // Schedule config
   uint8_t _schedHour[NUM_FERTS + 1];

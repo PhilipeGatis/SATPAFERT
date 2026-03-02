@@ -13,6 +13,7 @@ FertManager::FertManager() {
     _schedMinute[i] = DEFAULT_FERT_MINUTE;
     _flowRateMLps[i] = FLOW_RATE_ML_PER_SEC; // Default 1.5 mL/s
     _pwm[i] = 255;
+    _lowStockThreshold[i] = 50.0f; // Default low stock warning at 50 mL
   }
 }
 
@@ -166,6 +167,25 @@ void FertManager::resetStock(uint8_t ch, float ml) {
   }
 }
 
+void FertManager::setLowStockThreshold(uint8_t ch, float ml) {
+  if (ch <= NUM_FERTS && ml >= 0) {
+    _lowStockThreshold[ch] = ml;
+    saveState();
+    Serial.printf("[Fert] CH%d low stock threshold set to %.0f mL\n", ch + 1,
+                  ml);
+  }
+}
+
+float FertManager::getLowStockThreshold(uint8_t ch) const {
+  return (ch <= NUM_FERTS) ? _lowStockThreshold[ch] : 50.0f;
+}
+
+bool FertManager::isLowStock(uint8_t ch) const {
+  if (ch > NUM_FERTS)
+    return false;
+  return _stockML[ch] < _lowStockThreshold[ch] && _lowStockThreshold[ch] > 0;
+}
+
 String FertManager::getName(uint8_t ch) const {
   if (ch <= NUM_FERTS) {
     return _names[ch];
@@ -212,6 +232,9 @@ void FertManager::saveState() {
 
     snprintf(key, sizeof(key), "pwm%d", i); // PWM Config
     _prefs.putUChar(key, _pwm[i]);
+
+    snprintf(key, sizeof(key), "lt%d", i); // Low stock Threshold
+    _prefs.putFloat(key, _lowStockThreshold[i]);
   }
 }
 
@@ -272,6 +295,9 @@ void FertManager::_loadState() {
 
     snprintf(key, sizeof(key), "pwm%d", i);
     _pwm[i] = _prefs.getUChar(key, 255);
+
+    snprintf(key, sizeof(key), "lt%d", i);
+    _lowStockThreshold[i] = _prefs.getFloat(key, 50.0f);
   }
 }
 
