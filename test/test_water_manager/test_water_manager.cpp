@@ -271,6 +271,137 @@ void test_state_names() {
   TEST_ASSERT_EQUAL_STRING("COMPLETE", tpaStateName(TPAState::COMPLETE));
 }
 
+// --- Calibration ---
+
+void test_drain_calibration_during_tpa() {
+  WaterManager wm = makeWM();
+  wm.setLitersPerCm(3.2f);      // 80cm × 40cm / 1000 = 3.2 L/cm
+  wm.setTimeoutDrainMs(300000); // 5 min (so we don't hit timeout)
+
+  // Start TPA → CANISTER_OFF
+  mock_pulseIn_value = 583; // ~10cm
+  wm.startTPA();
+  wm.update(); // CANISTER_OFF: sets _waitUntilMs
+  mock_millis_value += 3001;
+  wm.update(); // CANISTER_OFF: wait elapsed → enters DRAINING
+
+  // First DRAINING tick: pump turns on, records _calStartLevel at ~10cm
+  wm.update();
+  TEST_ASSERT_EQUAL(TPAState::DRAINING, wm.getState());
+
+  // Drain pump runs for 20 seconds
+  mock_millis_value += 20000;
+
+  // Water level dropped to 20+ cm (target reached)
+  mock_pulseIn_value = 1200; // ~20.4cm > 20cm target
+  wm.update();               // DRAINING → FILLING (calibration captured)
+
+  TEST_ASSERT_EQUAL(TPAState::FILLING_RESERVOIR, wm.getState());
+  TEST_ASSERT_TRUE(wm.getDrainFlowLPM() > 0);
+}
+
+void test_refill_calibration_during_tpa() {
+  WaterManager wm = makeWM();
+  wm.setLitersPerCm(3.2f);
+  wm.setTimeoutDrainMs(300000);
+  wm.setTimeoutRefillMs(300000);
+
+  // CANISTER_OFF
+  mock_pulseIn_value = 400; // ~6.9cm
+  wm.startTPA();
+  wm.update(); // CANISTER_OFF: sets wait
+  mock_millis_value += 3001;
+  wm.update(); // → DRAINING
+
+  // First DRAINING tick (start pump, record start)
+  wm.update();
+
+  // Water reaches drain target
+  mock_pulseIn_value = 1200; // ~20.4cm
+  wm.update();               // → FILLING_RESERVOIR
+
+  // Float switch triggered (reservoir full)
+  mock_pin_read_value[PIN_FLOAT] = LOW;
+  wm.update(); // → DOSING_PRIME
+
+  // First DOSING_PRIME tick: doses and sets wait
+  wm.update();
+  mock_millis_value += 2001;
+  wm.update(); // wait elapsed → REFILLING
+  TEST_ASSERT_EQUAL(TPAState::REFILLING, wm.getState());
+
+  // First REFILLING tick: pump on, records _calStartLevel at ~20.4cm
+  wm.update();
+
+  // Refill pump runs for 30 seconds
+  mock_millis_value += 30000;
+
+  // Water level back to ~10cm
+  mock_pulseIn_value = 583; // ~9.9cm <= 10cm target
+  wm.update();              // → CANISTER_ON
+
+  TEST_ASSERT_EQUAL(TPAState::CANISTER_ON, wm.getState());
+  TEST_ASSERT_TRUE(wm.getRefillFlowLPM() > 0);
+}
+
+void test_dynamic_timeout_drain() {
+  WaterManager wm = makeWM();
+  wm.setTimeoutDrainMs(5000); // 5s custom timeout
+
+  mock_pulseIn_value = 400;
+  wm.startTPA();
+  wm.update();
+  mock_millis_value += 3001;
+  wm.update(); // → DRAINING
+
+  // Advance past custom timeout (5s)
+  mock_millis_value += 5001;
+  wm.update();
+  TEST_ASSERT_EQUAL(TPAState::ERROR, wm.getState());
+}
+
+void test_dynamic_timeout_refill() {
+  WaterManager wm = makeWM();
+  wm.setTimeoutRefillMs(8000); // 8s custom timeout
+
+  goToRefilling(wm);
+  TEST_ASSERT_EQUAL(TPAState::REFILLING, wm.getState());
+
+  // Advance past custom timeout (8s)
+  mock_millis_value += 8001;
+  wm.update();
+  TEST_ASSERT_EQUAL(TPAState::ERROR, wm.getState());
+}
+
+void test_uncalibrated_defaults_are_short() {
+  WaterManager wm = makeWM();
+  // Default: not calibrated
+  TEST_ASSERT_FALSE(wm.isCalibrated());
+
+  // Start draining
+  mock_pulseIn_value = 400;
+  wm.startTPA();
+  wm.update();
+  mock_millis_value += 3001;
+  wm.update(); // → DRAINING
+
+  // After 30s (uncalibrated default), should timeout
+  mock_millis_value += 30001;
+  wm.update();
+  TEST_ASSERT_EQUAL(TPAState::ERROR, wm.getState());
+}
+
+void test_is_calibrated_getter() {
+  WaterManager wm = makeWM();
+  TEST_ASSERT_FALSE(wm.isCalibrated());
+
+  wm.setDrainFlowLPM(2.5f);
+  TEST_ASSERT_FALSE(wm.isCalibrated()); // still missing refill
+
+  wm.setRefillFlowLPM(3.0f);
+  TEST_ASSERT_TRUE(wm.isCalibrated());
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
 
@@ -291,6 +422,14 @@ int main(int argc, char **argv) {
   RUN_TEST(test_refill_stops_at_setpoint);
   RUN_TEST(test_complete_cycle_restores_canister);
   RUN_TEST(test_state_names);
+
+  // Calibration & Dynamic Timeouts
+  RUN_TEST(test_drain_calibration_during_tpa);
+  RUN_TEST(test_refill_calibration_during_tpa);
+  RUN_TEST(test_dynamic_timeout_drain);
+  RUN_TEST(test_dynamic_timeout_refill);
+  RUN_TEST(test_uncalibrated_defaults_are_short);
+  RUN_TEST(test_is_calibrated_getter);
 
   UNITY_END();
   return 0;

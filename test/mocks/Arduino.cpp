@@ -17,8 +17,10 @@ void pinMode(uint8_t pin, uint8_t mode) {
 }
 
 void digitalWrite(uint8_t pin, uint8_t val) {
-  if (pin < NUM_MOCK_PINS)
+  if (pin < NUM_MOCK_PINS) {
     mock_pin_state[pin] = val;
+    mock_pin_read_value[pin] = val; // Also update read value for output pins
+  }
 }
 
 uint8_t digitalRead(uint8_t pin) {
