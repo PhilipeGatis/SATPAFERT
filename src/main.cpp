@@ -46,6 +46,10 @@ bool tpaErrorNotified = false;    // Prevent repeated TPA error notifications
 unsigned long lastWiFiRetryTime = 0;
 const unsigned long WIFI_RETRY_INTERVAL_MS = 30000; // 30 seconds
 
+// ---- TPA Button State ----
+bool lastButtonState = HIGH; // INPUT_PULLUP: idle = HIGH
+bool lastFertBtnState = HIGH;
+
 // =============================================================================
 // SETUP
 // =============================================================================
@@ -55,6 +59,10 @@ void setup() {
     pinMode(OUTPUT_PINS[i], OUTPUT);
     digitalWrite(OUTPUT_PINS[i], LOW);
   }
+
+  // TPA button
+  pinMode(PIN_TPA_BUTTON, INPUT_PULLUP);
+  pinMode(PIN_FERT_BUTTON, INPUT_PULLUP);
 
   // --- Step 2: Serial ---
   Serial.begin(115200);
@@ -273,6 +281,37 @@ void loop() {
 
   // ---- 5. SCHEDULING (only if not in maintenance and not running TPA) ----
   if (!safety.isMaintenanceMode()) {
+
+    // ---- Manual TPA button (GPIO 15, active LOW with debounce) ----
+    bool btnState = digitalRead(PIN_TPA_BUTTON);
+    if (btnState == LOW && lastButtonState == HIGH && !waterMgr.isRunning()) {
+      Serial.println("[BTN] TPA button pressed — starting TPA...");
+      float lvl = safety.readUltrasonic();
+      waterMgr.setDrainTargetCm(lvl + 5.0f);
+      waterMgr.setRefillTargetCm(lvl);
+      waterMgr.setPrimeML(DEFAULT_PRIME_ML);
+      waterMgr.startTPA();
+    }
+    lastButtonState = btnState;
+
+    // ---- Manual FERT button (GPIO 23, active LOW with debounce) ----
+    bool fertBtnState = digitalRead(PIN_FERT_BUTTON);
+    if (fertBtnState == LOW && lastFertBtnState == HIGH) {
+      Serial.println("[BTN] Fert button pressed — dosing all channels...");
+      for (uint8_t ch = 0; ch < NUM_FERTS; ch++) {
+        float dose = fertMgr.getDoseML(ch, 0); // Use Sunday dose as default
+        if (dose <= 0)
+          dose = DEFAULT_DOSE_ML;
+        Serial.printf("[BTN] CH%d: %.1f mL\n", ch + 1, dose);
+        fertMgr.doseChannel(ch, dose);
+        float stock = fertMgr.getStockML(ch);
+        fertMgr.setStockML(ch, stock - dose);
+      }
+      fertMgr.saveState();
+      Serial.println("[BTN] Fertilization complete.");
+    }
+    lastFertBtnState = fertBtnState;
+
     DateTime now = timeMgr.now();
     uint8_t currentMinute = now.minute();
 

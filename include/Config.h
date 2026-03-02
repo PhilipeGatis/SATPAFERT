@@ -20,7 +20,7 @@ constexpr uint8_t PIN_REFILL = 33;   // CH7 - Refill pump (recalque)
 constexpr uint8_t PIN_SOLENOID = 32; // CH8 - Solenoid valve
 
 // Filtration
-constexpr uint8_t PIN_CANISTER = 2; // Relay AC for canister filter
+constexpr uint8_t PIN_CANISTER = 2; // Relay SSR for canister filter
 
 // --- Sensors ---
 constexpr uint8_t PIN_TRIG = 18; // Ultrasonic JSN-SR04T trigger
@@ -29,6 +29,10 @@ constexpr uint8_t PIN_OPTICAL =
     4; // Optical max-level sensor (INPUT_PULLUP, active LOW)
 constexpr uint8_t PIN_FLOAT =
     5; // Horizontal float switch reservoir (INPUT_PULLUP, active LOW)
+constexpr uint8_t PIN_TPA_BUTTON =
+    15; // Manual TPA start button (INPUT_PULLUP, active LOW)
+constexpr uint8_t PIN_FERT_BUTTON =
+    23; // Manual fertilization button (INPUT_PULLUP, active LOW)
 
 // --- I2C (DS3231 RTC) ---
 // Using ESP32 default I2C: SDA=21, SCL=22
@@ -50,21 +54,45 @@ constexpr uint8_t NUM_FERTS = 4;
 // TIMING & SAFETY CONSTANTS
 // ============================================================================
 
-// -- Pump timeouts (ms) --
-constexpr unsigned long TIMEOUT_DRAIN_MS = 5UL * 60 * 1000; // 5 min max drain
-constexpr unsigned long TIMEOUT_FILL_MS =
-    10UL * 60 * 1000; // 10 min max reservoir fill
-constexpr unsigned long TIMEOUT_REFILL_MS =
-    10UL * 60 * 1000; // 10 min max tank refill
-constexpr unsigned long TIMEOUT_PRIME_MS =
-    60UL * 1000; // 1 min max prime dosing
-constexpr unsigned long TIMEOUT_FERT_MS =
-    30UL * 1000; // 30 sec max per fert channel
-constexpr unsigned long TIMEOUT_EMERGENCY_MS =
-    3UL * 60 * 1000; // 3 min emergency drain
+#ifdef WOKWI_TEST
+// ── Wokwi fast-simulation overrides (seconds instead of minutes) ─────────────
 
-// -- Maintenance mode --
+// Pump timeouts
+constexpr unsigned long TIMEOUT_DRAIN_MS = 15UL * 1000;        // 15s
+constexpr unsigned long TIMEOUT_FILL_MS = 15UL * 1000;         // 15s
+constexpr unsigned long TIMEOUT_REFILL_MS = 15UL * 1000;       // 15s
+constexpr unsigned long TIMEOUT_PRIME_MS = 5UL * 1000;         // 5s
+constexpr unsigned long TIMEOUT_FERT_MS = 5UL * 1000;          // 5s
+constexpr unsigned long TIMEOUT_EMERGENCY_MS = 10UL * 1000;    // 10s
+constexpr unsigned long MAINTENANCE_DURATION_MS = 60UL * 1000; // 1 min
+
+// Volumes and flow
+constexpr float DEFAULT_DOSE_ML = 1.0f;       // 1 mL (fast)
+constexpr float DEFAULT_PRIME_ML = 1.0f;      // 1 mL
+constexpr float DEFAULT_STOCK_ML = 50.0f;     // 50 mL
+constexpr float FLOW_RATE_ML_PER_SEC = 10.0f; // 10 mL/s (fast pump)
+constexpr float DEFAULT_DRAIN_PCT = 20.0f;    // 20% drain
+
+#else
+// ── Production values ────────────────────────────────────────────────────────
+
+// Pump timeouts
+constexpr unsigned long TIMEOUT_DRAIN_MS = 5UL * 60 * 1000;         // 5 min
+constexpr unsigned long TIMEOUT_FILL_MS = 10UL * 60 * 1000;         // 10 min
+constexpr unsigned long TIMEOUT_REFILL_MS = 10UL * 60 * 1000;       // 10 min
+constexpr unsigned long TIMEOUT_PRIME_MS = 60UL * 1000;             // 1 min
+constexpr unsigned long TIMEOUT_FERT_MS = 30UL * 1000;              // 30 sec
+constexpr unsigned long TIMEOUT_EMERGENCY_MS = 3UL * 60 * 1000;     // 3 min
 constexpr unsigned long MAINTENANCE_DURATION_MS = 30UL * 60 * 1000; // 30 min
+
+// Volumes and flow
+constexpr float DEFAULT_DOSE_ML = 5.0f;      // Default dose per fertilizer
+constexpr float DEFAULT_PRIME_ML = 10.0f;    // Default Prime dose
+constexpr float DEFAULT_STOCK_ML = 500.0f;   // Default bottle size
+constexpr float FLOW_RATE_ML_PER_SEC = 1.5f; // Peristaltic pump flow rate
+constexpr float DEFAULT_DRAIN_PCT = 30.0f;   // Drain 30% of tank
+
+#endif // WOKWI_TEST
 
 // -- NTP sync interval --
 constexpr unsigned long NTP_SYNC_INTERVAL_MS = 24UL * 3600 * 1000; // 24 h
@@ -76,16 +104,9 @@ constexpr unsigned long ULTRASONIC_PULSE_TIMEOUT_US =
     30000; // 30 ms echo timeout
 
 // -- Water levels (distance from sensor in cm — lower distance = higher water)
-// --
-constexpr float LEVEL_SAFETY_MIN_CM = 5.0f; // Overflow alert (water too high)
+constexpr float LEVEL_SAFETY_MIN_CM = 5.0f;     // Overflow alert
 constexpr float LEVEL_DRAIN_TARGET_CM = 20.0f;  // Default TPA drain target
 constexpr float LEVEL_REFILL_TARGET_CM = 10.0f; // Default refill setpoint
-
-// -- Fertilizer defaults --
-constexpr float DEFAULT_DOSE_ML = 5.0f;      // Default dose per fertilizer
-constexpr float DEFAULT_PRIME_ML = 10.0f;    // Default Prime dose
-constexpr float DEFAULT_STOCK_ML = 500.0f;   // Default bottle size
-constexpr float FLOW_RATE_ML_PER_SEC = 1.5f; // Peristaltic pump flow rate
 
 // -- TPA defaults --
 constexpr uint8_t DEFAULT_TPA_DAY = 0; // Sunday
@@ -93,10 +114,7 @@ constexpr uint8_t DEFAULT_TPA_HOUR = 10;
 constexpr uint8_t DEFAULT_TPA_MINUTE = 0;
 constexpr uint8_t DEFAULT_FERT_HOUR = 9;
 constexpr uint8_t DEFAULT_FERT_MINUTE = 0;
-constexpr float DEFAULT_DRAIN_PCT = 30.0f; // Drain 30% of tank
 
 // -- Loop timing --
-constexpr unsigned long TELEMETRY_INTERVAL_MS =
-    10000; // Telemetry update every 10s
-constexpr unsigned long SAFETY_CHECK_INTERVAL_MS =
-    500; // Safety checks every 500ms
+constexpr unsigned long TELEMETRY_INTERVAL_MS = 10000;  // 10s
+constexpr unsigned long SAFETY_CHECK_INTERVAL_MS = 500; // 500ms
