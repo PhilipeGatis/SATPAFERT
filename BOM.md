@@ -1,6 +1,6 @@
 # BOM — Bill of Materials
 
-Lista completa de componentes do sistema SATPAFERT.
+Lista completa de componentes do sistema IARA.
 
 ---
 

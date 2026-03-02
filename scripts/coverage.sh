@@ -45,7 +45,7 @@ echo "[5/5] Generating HTML report..."
 mkdir -p "$COVERAGE_DIR"
 genhtml "$BUILD_DIR/coverage.info" \
     --output-directory "$COVERAGE_DIR" \
-    --title "SATPAFERT - Aquarium Firmware Coverage" \
+    --title "IARA - Aquarium Firmware Coverage" \
     --legend \
     --branch-coverage \
     --ignore-errors inconsistent,category \

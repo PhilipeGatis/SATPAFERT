@@ -128,7 +128,7 @@ void NotifyManager::sendTest() {
     Serial.println("[Notify] Cannot send test: no Pushsafer key configured.");
     return;
   }
-  bool ok = _send("Teste SATPAFERT 🐟",
+  bool ok = _send("Teste IARA",
                   "Notificação de teste do sistema de automação do aquário.",
                   "1", "10");
   Serial.printf("[Notify] Test notification %s.\n", ok ? "SENT" : "FAILED");

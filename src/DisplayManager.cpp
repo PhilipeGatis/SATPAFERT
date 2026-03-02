@@ -39,7 +39,7 @@ void DisplayManager::begin(TimeManager *time, WaterManager *water,
 
   _display.setTextSize(2);
   _display.setCursor(10, 10);
-  _display.println(F("SATPAFERT"));
+  _display.println(F("IARA"));
 
   _display.setTextSize(1);
   _display.setCursor(30, 35);
