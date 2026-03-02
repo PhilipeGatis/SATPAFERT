@@ -63,8 +63,8 @@ void WaterManager::abortTPA() {
   digitalWrite(PIN_REFILL, LOW);
   digitalWrite(PIN_SOLENOID, LOW);
   digitalWrite(PIN_PRIME, LOW);
-  // Canister back on for safety
-  digitalWrite(PIN_CANISTER, HIGH);
+  // Canister back on for safety (SSR: LOW = ON)
+  digitalWrite(PIN_CANISTER, LOW);
   _state = TPAState::ERROR;
 }
 
@@ -121,8 +121,8 @@ void WaterManager::_enterState(TPAState newState) {
 // ============================================================================
 
 void WaterManager::_handleCanisterOff() {
-  // Step 1: Turn off canister filter
-  digitalWrite(PIN_CANISTER, LOW);
+  // Step 1: Turn off canister filter (SSR: HIGH = OFF)
+  digitalWrite(PIN_CANISTER, HIGH);
   Serial.println("[TPA] Canister OFF. Waiting 3s for water to settle...");
   delay(3000); // Wait for water flow to stop
 
@@ -232,8 +232,8 @@ void WaterManager::_handleRefilling() {
 }
 
 void WaterManager::_handleCanisterOn() {
-  // Step 6: Turn canister filter back on
-  digitalWrite(PIN_CANISTER, HIGH);
+  // Step 6: Turn canister filter back on (SSR: LOW = ON)
+  digitalWrite(PIN_CANISTER, LOW);
   Serial.println("[TPA] Canister ON. TPA cycle COMPLETE.");
 
   _state = TPAState::COMPLETE;
@@ -245,7 +245,7 @@ void WaterManager::_error(const char *msg) {
   digitalWrite(PIN_DRAIN, LOW);
   digitalWrite(PIN_REFILL, LOW);
   digitalWrite(PIN_SOLENOID, LOW);
-  // Turn canister back on
-  digitalWrite(PIN_CANISTER, HIGH);
+  // Turn canister back on (SSR: LOW = ON)
+  digitalWrite(PIN_CANISTER, LOW);
   _state = TPAState::ERROR;
 }

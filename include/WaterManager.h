@@ -59,7 +59,9 @@ public:
   float getPrimeML() const { return _primeML; }
 
   /// Canister filter state
-  bool isCanisterOn() const { return digitalRead(PIN_CANISTER) == HIGH; }
+  bool isCanisterOn() const {
+    return digitalRead(PIN_CANISTER) == LOW;
+  } // SSR: LOW = ON
 
   /// Get last TPA completion timestamp (for telemetry)
   String getLastTPATime() const { return _lastTPATime; }
