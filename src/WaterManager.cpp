@@ -322,7 +322,24 @@ void WaterManager::_error(const char *msg) {
   digitalWrite(PIN_DRAIN, LOW);
   digitalWrite(PIN_REFILL, LOW);
   digitalWrite(PIN_SOLENOID, LOW);
-  // Turn canister back on (SSR: LOW = ON)
-  digitalWrite(PIN_CANISTER, LOW);
+
+  // Only turn canister back on if water level is safe
+  // (low distance = high water = safe for canister intake)
+  if (_safety) {
+    float dist = _safety->readUltrasonic();
+    if (dist > 0 && dist <= _refillTargetCm) {
+      digitalWrite(PIN_CANISTER, LOW); // SSR: LOW = ON
+      Serial.printf("[TPA] Canister ON (water level %.1f cm is safe).\n", dist);
+    } else {
+      Serial.printf("[TPA] WARNING: Canister stays OFF — water level %.1f cm "
+                    "too low (need <= %.1f cm).\n",
+                    dist, _refillTargetCm);
+    }
+  } else {
+    // No safety sensor — leave canister off for safety
+    Serial.println("[TPA] WARNING: Canister stays OFF — no sensor to verify "
+                   "water level.");
+  }
+
   _state = TPAState::ERROR;
 }

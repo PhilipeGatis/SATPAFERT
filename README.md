@@ -83,7 +83,7 @@ stateDiagram-v2
     DRAINING --> ERROR: timeout
     FILLING_RESERVOIR --> ERROR: timeout
     REFILLING --> ERROR: timeout / optical sensor
-    ERROR --> [*]: all actuators OFF
+    ERROR --> [*]: check level → canister ON/OFF
 ```
 
 | Step | State | What happens |
@@ -99,6 +99,7 @@ stateDiagram-v2
 - Each state has a **dynamic timeout** calculated from calibrated flow rates (`volume / flow × 1.5`). First TPA uses safe defaults: **30s drain, 15s refill**.
 - The **optical sensor** acts as a hardware-level safety cutoff during refill — immediate stop regardless of ultrasonic reading.
 - **Emergency abort** at any point turns off all actuators and restores the canister filter.
+- **On error**, the system checks the water level via ultrasonic before turning the canister back on. If the level is too low (e.g. error during drain), the canister **stays OFF** to avoid running dry and damaging the pump.
 
 ---
 

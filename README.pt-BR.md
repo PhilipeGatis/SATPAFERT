@@ -83,7 +83,7 @@ stateDiagram-v2
     DRAINING --> ERROR: timeout
     FILLING_RESERVOIR --> ERROR: timeout
     REFILLING --> ERROR: timeout / sensor óptico
-    ERROR --> [*]: todos atuadores OFF
+    ERROR --> [*]: verifica nível → canister ON/OFF
 ```
 
 | Passo | Estado | O que acontece |
@@ -99,6 +99,7 @@ stateDiagram-v2
 - Cada estado tem **timeout dinâmico** calculado a partir das vazões calibradas (`volume / vazão × 1.5`). A primeira TPA usa defaults seguros: **30s drenagem, 15s recalque**.
 - O **sensor óptico** atua como corte de segurança em nível de hardware durante o refill — parada imediata independente da leitura ultrassônica.
 - **Abort de emergência** em qualquer ponto desliga todos os atuadores e restaura o filtro canister.
+- **Em caso de erro**, o sistema verifica o nível da água via ultrassônico antes de religar o canister. Se o nível estiver muito baixo (ex: erro durante drenagem), o canister **permanece OFF** para evitar funcionar a seco e danificar a bomba.
 
 ---
 
