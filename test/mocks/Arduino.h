@@ -70,6 +70,21 @@ public:
 
   bool operator==(const char *other) const { return _str == other; }
   bool operator==(const String &other) const { return _str == other._str; }
+  bool operator!=(const char *other) const { return _str != other; }
+  bool operator!=(const String &other) const { return _str != other._str; }
+
+  String operator+(const String &rhs) const {
+    return String((_str + rhs._str).c_str());
+  }
+  String operator+(const char *rhs) const {
+    return String((_str + std::string(rhs ? rhs : "")).c_str());
+  }
+  String operator+(int rhs) const {
+    return String((_str + std::to_string(rhs)).c_str());
+  }
+  friend String operator+(const char *lhs, const String &rhs) {
+    return String((std::string(lhs ? lhs : "") + rhs._str).c_str());
+  }
 
 private:
   std::string _str;
@@ -94,6 +109,12 @@ extern unsigned long mock_millis_value;
 unsigned long millis();
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned int us);
+
+// ---- LEDC (PWM) stubs ----
+void ledcSetup(uint8_t channel, double freq, uint8_t resolution);
+void ledcAttachPin(uint8_t pin, uint8_t channel);
+void ledcWrite(uint8_t channel, uint32_t duty);
+void ledcDetachPin(uint8_t pin);
 
 // ---- pulseIn ----
 extern unsigned long mock_pulseIn_value;

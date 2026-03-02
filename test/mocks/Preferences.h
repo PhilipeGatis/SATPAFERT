@@ -9,6 +9,8 @@
 #include <map>
 #include <string>
 
+#include "Arduino.h"
+
 class Preferences {
 public:
   void begin(const char *ns, bool readOnly = false) { _namespace = ns; }
@@ -22,6 +24,10 @@ public:
   void putUChar(const char *key, uint8_t val) {
     _store[_makeKey(key)].u8 = val;
   }
+  void putString(const char *key, const char *val) {
+    _strStore[_makeKey(key)] = val ? val : "";
+  }
+  void putString(const char *key, const String &val);
 
   // ---- Read ----
   uint32_t getUInt(const char *key, uint32_t defaultVal = 0) {
@@ -36,9 +42,14 @@ public:
     auto it = _store.find(_makeKey(key));
     return (it != _store.end()) ? it->second.u8 : defaultVal;
   }
+  String getString(const char *key, const String &defaultVal = String());
+  String getString(const char *key, const char *defaultVal);
 
   // ---- Mock control ----
-  static void mock_clearAll() { _store.clear(); }
+  static void mock_clearAll() {
+    _store.clear();
+    _strStore.clear();
+  }
 
 private:
   std::string _namespace;
@@ -51,6 +62,7 @@ private:
   };
 
   static std::map<std::string, MockValue> _store;
+  static std::map<std::string, std::string> _strStore;
 
   std::string _makeKey(const char *key) { return _namespace + "." + key; }
 };

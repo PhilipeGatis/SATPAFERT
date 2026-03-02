@@ -5,6 +5,7 @@
 
 #include "Arduino.h"
 #include "NotifyManager.h"
+#include "Preferences.h"
 #include <unity.h>
 
 void setUp() {

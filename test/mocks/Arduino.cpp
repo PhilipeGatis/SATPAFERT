@@ -44,3 +44,9 @@ MockSerial Serial;
 
 // ---- WiFi ----
 MockWiFiClass WiFi;
+
+// ---- LEDC (PWM) stubs ----
+void ledcSetup(uint8_t channel, double freq, uint8_t resolution) {}
+void ledcAttachPin(uint8_t pin, uint8_t channel) {}
+void ledcWrite(uint8_t channel, uint32_t duty) {}
+void ledcDetachPin(uint8_t pin) {}

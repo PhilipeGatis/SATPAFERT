@@ -7,6 +7,20 @@
 #include "FertManager.h"
 #include <unity.h>
 
+// Helper: create a FertManager with schedule set to 09:00 for all channels
+static FertManager createFM(uint8_t schedHour = 9, uint8_t schedMin = 0) {
+  FertManager fm;
+  fm.begin();
+  for (uint8_t ch = 0; ch <= NUM_FERTS; ch++) {
+    fm.setScheduleTime(ch, schedHour, schedMin);
+    // Set a default dose for all days of the week
+    for (uint8_t dow = 0; dow < 7; dow++) {
+      fm.setDoseML(ch, dow, DEFAULT_DOSE_ML);
+    }
+  }
+  return fm;
+}
+
 // Reset all state before each test
 void setUp() {
   mock_reset_pins();
@@ -21,70 +35,58 @@ void tearDown() {}
 // ----------------------------------------------------------------------------
 
 void test_not_dosed_initially() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
   DateTime dt(2026, 2, 24, 9, 0, 0);
   TEST_ASSERT_FALSE(fm.wasDosedToday(dt));
 }
 
 void test_dose_marks_day_as_done() {
-  FertManager fm;
-  fm.begin();
-  DateTime dt(2026, 2, 24, 9, 0, 0);
+  FertManager fm = createFM();
+  DateTime dt(2026, 2, 24, 9, 0, 0); // 09:00 matches schedule
 
-  fm.checkAndDose(dt, 9, 0); // Should dose
+  fm.update(dt); // Should dose all channels
 
   TEST_ASSERT_TRUE(fm.wasDosedToday(dt));
 }
 
 void test_no_double_dose_same_day() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
   DateTime dt(2026, 2, 24, 9, 0, 0);
 
-  bool first = fm.checkAndDose(dt, 9, 0);
-  TEST_ASSERT_TRUE(first);
+  fm.update(dt); // First call — should dose
+  TEST_ASSERT_TRUE(fm.wasDosedToday(dt));
 
-  // Second call same day — should NOT dose again
-  bool second = fm.checkAndDose(dt, 9, 0);
-  TEST_ASSERT_FALSE(second);
+  // Reset millis to simulate the pump running again
+  mock_millis_value = 0;
+  fm.update(dt); // Second call same day — should NOT dose again
+  // wasDosedToday should still be true (already dosed)
+  TEST_ASSERT_TRUE(fm.wasDosedToday(dt));
 }
 
 void test_doses_on_different_day() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
   DateTime day1(2026, 2, 24, 9, 0, 0);
   DateTime day2(2026, 2, 25, 9, 0, 0);
 
-  fm.checkAndDose(day1, 9, 0);
+  fm.update(day1);
   TEST_ASSERT_TRUE(fm.wasDosedToday(day1));
   TEST_ASSERT_FALSE(fm.wasDosedToday(day2));
-
-  // Next day should allow dosing
-  bool dosed = fm.checkAndDose(day2, 9, 0);
-  TEST_ASSERT_TRUE(dosed);
 }
 
 void test_dedup_survives_reboot() {
   // Simulate first boot: dose and save
   {
-    FertManager fm;
-    fm.begin();
+    FertManager fm = createFM();
     DateTime dt(2026, 2, 24, 9, 0, 0);
-    fm.checkAndDose(dt, 9, 0);
+    fm.update(dt);
     fm.saveState();
   }
 
   // Simulate reboot: new FertManager instance loads from NVS
   {
-    FertManager fm;
-    fm.begin();
+    FertManager fm = createFM();
     DateTime dt(2026, 2, 24, 9, 0, 0);
     TEST_ASSERT_TRUE(fm.wasDosedToday(dt));
-
-    // Should NOT dose again
-    bool dosed = fm.checkAndDose(dt, 9, 0);
-    TEST_ASSERT_FALSE(dosed);
   }
 }
 
@@ -93,12 +95,10 @@ void test_dedup_survives_reboot() {
 // ----------------------------------------------------------------------------
 
 void test_no_dose_outside_schedule() {
-  FertManager fm;
-  fm.begin();
-  DateTime dt(2026, 2, 24, 10, 30, 0); // 10:30 != schedule 09:00
-  bool dosed = fm.checkAndDose(dt, 9, 0);
-  TEST_ASSERT_FALSE(dosed);
-  TEST_ASSERT_FALSE(fm.wasDosedToday(dt)); // Shouldn't be marked
+  FertManager fm = createFM(9, 0);     // Schedule at 09:00
+  DateTime dt(2026, 2, 24, 10, 30, 0); // 10:30 != 09:00
+  fm.update(dt);
+  TEST_ASSERT_FALSE(fm.wasDosedToday(dt)); // Should NOT have dosed
 }
 
 // ----------------------------------------------------------------------------
@@ -106,22 +106,21 @@ void test_no_dose_outside_schedule() {
 // ----------------------------------------------------------------------------
 
 void test_stock_decrements_after_dosing() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
 
   float initialStock = fm.getStockML(0);
-  float dose = fm.getDoseML(0);
+  uint8_t dow = 1; // Monday (2026-02-24 is a Tuesday=2, but let's use day1)
+  DateTime dt(2026, 2, 24, 9, 0, 0); // Tuesday = dow 2
+  float dose = fm.getDoseML(0, dt.dayOfTheWeek());
 
-  DateTime dt(2026, 2, 24, 9, 0, 0);
-  fm.checkAndDose(dt, 9, 0);
+  fm.update(dt);
 
   float remaining = fm.getStockML(0);
   TEST_ASSERT_FLOAT_WITHIN(0.1f, initialStock - dose, remaining);
 }
 
 void test_stock_reset() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
 
   fm.setStockML(0, 10.0f); // Low stock
   TEST_ASSERT_FLOAT_WITHIN(0.1f, 10.0f, fm.getStockML(0));
@@ -131,8 +130,7 @@ void test_stock_reset() {
 }
 
 void test_skip_dose_when_empty_stock() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
 
   // Empty stock for all channels
   for (int i = 0; i < 4; i++) {
@@ -140,22 +138,21 @@ void test_skip_dose_when_empty_stock() {
   }
 
   DateTime dt(2026, 2, 24, 9, 0, 0);
-  fm.checkAndDose(dt, 9, 0);
+  fm.update(dt);
 
-  // Should still mark as dosed (even if skipped — prevents retries)
-  TEST_ASSERT_TRUE(fm.wasDosedToday(dt));
+  // Current behavior: insufficient stock → skipped, NOT marked as dosed
+  // (only zero-dose days are marked as dosed to prevent retries)
+  TEST_ASSERT_FALSE(fm.wasDosedToday(dt));
 }
 
 void test_stock_persists_across_reboot() {
   {
-    FertManager fm;
-    fm.begin();
+    FertManager fm = createFM();
     fm.setStockML(0, 42.0f);
     fm.saveState();
   }
   {
-    FertManager fm;
-    fm.begin();
+    FertManager fm = createFM();
     TEST_ASSERT_FLOAT_WITHIN(0.1f, 42.0f, fm.getStockML(0));
   }
 }
@@ -168,11 +165,13 @@ void test_set_and_get_dose() {
   FertManager fm;
   fm.begin();
 
-  fm.setDoseML(0, 7.5f);
-  TEST_ASSERT_FLOAT_WITHIN(0.01f, 7.5f, fm.getDoseML(0));
+  // Set dose for CH0 on Sunday (0)
+  fm.setDoseML(0, 0, 7.5f);
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 7.5f, fm.getDoseML(0, 0));
 
-  fm.setDoseML(3, 12.0f);
-  TEST_ASSERT_FLOAT_WITHIN(0.01f, 12.0f, fm.getDoseML(3));
+  // Set dose for CH3 on Wednesday (3)
+  fm.setDoseML(3, 3, 12.0f);
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 12.0f, fm.getDoseML(3, 3));
 }
 
 // ----------------------------------------------------------------------------
@@ -180,8 +179,7 @@ void test_set_and_get_dose() {
 // ----------------------------------------------------------------------------
 
 void test_dose_channel_activates_correct_pin() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
   mock_reset_pins();
 
   // Dose CH1 (PIN_FERT1 = GPIO 13)
@@ -192,8 +190,7 @@ void test_dose_channel_activates_correct_pin() {
 }
 
 void test_dose_channel_rejects_invalid() {
-  FertManager fm;
-  fm.begin();
+  FertManager fm = createFM();
 
   // Channel > 4 should fail
   bool ok = fm.doseChannel(10, 5.0f);

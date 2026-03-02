@@ -114,7 +114,8 @@ void test_canister_off_disables_relay() {
   mock_pulseIn_value = 400;
   wm.startTPA();
   wm.update();
-  TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_CANISTER]);
+  // SSR relay: HIGH = OFF
+  TEST_ASSERT_EQUAL(HIGH, mock_pin_state[PIN_CANISTER]);
   TEST_ASSERT_EQUAL(TPAState::DRAINING, wm.getState());
 }
 
@@ -147,7 +148,8 @@ void test_draining_timeout_causes_error() {
   wm.update();
   TEST_ASSERT_EQUAL(TPAState::ERROR, wm.getState());
   TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_DRAIN]);
-  TEST_ASSERT_EQUAL(HIGH, mock_pin_state[PIN_CANISTER]);
+  // SSR relay: LOW = ON (canister restored on error)
+  TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_CANISTER]);
 }
 
 // --- Filling Reservoir ---
@@ -192,7 +194,8 @@ void test_abort_stops_all_and_restores_canister() {
   TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_DRAIN]);
   TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_REFILL]);
   TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_SOLENOID]);
-  TEST_ASSERT_EQUAL(HIGH, mock_pin_state[PIN_CANISTER]);
+  // SSR relay: LOW = ON (canister restored on abort)
+  TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_CANISTER]);
 }
 
 // --- Emergency ---
@@ -245,7 +248,8 @@ void test_complete_cycle_restores_canister() {
   wm.update(); // CANISTER_ON → COMPLETE
 
   TEST_ASSERT_EQUAL(TPAState::COMPLETE, wm.getState());
-  TEST_ASSERT_EQUAL(HIGH, mock_pin_state[PIN_CANISTER]);
+  // SSR relay: LOW = ON (canister restored after complete cycle)
+  TEST_ASSERT_EQUAL(LOW, mock_pin_state[PIN_CANISTER]);
   TEST_ASSERT_FALSE(wm.isRunning());
 }
 
