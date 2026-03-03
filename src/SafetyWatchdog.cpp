@@ -53,6 +53,7 @@ float SafetyWatchdog::readUltrasonic() {
       }
     }
     delay(30); // JSN-SR04T needs ~30ms between measurements
+    yield();   // Let FreeRTOS IDLE task run (prevents task WDT trigger)
   }
 
   if (validCount == 0) {

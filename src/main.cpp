@@ -73,7 +73,31 @@ void setup() {
   Serial.println("  v3.0.0 - Web Dashboard");
   Serial.println("==========================================\n");
 
-  // --- Step 2b: Filesystem ---
+  // --- Step 2b: I2C bus scan (diagnostic) ---
+  Wire.begin(); // SDA=21, SCL=22
+  Serial.println("[I2C] Scanning bus...");
+  uint8_t devCount = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("[I2C] Device found at 0x%02X", addr);
+      if (addr == 0x3C || addr == 0x3D)
+        Serial.print(" (SSD1306 OLED)");
+      if (addr == 0x68)
+        Serial.print(" (DS3231 RTC)");
+      if (addr == 0x57)
+        Serial.print(" (DS3231 EEPROM)");
+      Serial.println();
+      devCount++;
+    }
+  }
+  Serial.printf("[I2C] Scan complete: %d device(s) found.\n", devCount);
+
+  // --- Step 2c: OLED Display (early init for boot screen) ---
+  displayMgr.initHardware();
+
+  // --- Step 2c: Filesystem ---
+  displayMgr.showBootStatus("Montando LittleFS...");
   if (!LittleFS.begin(true)) {
     Serial.println("[LittleFS] Mount Failed. Formatting...");
   } else {
@@ -81,6 +105,7 @@ void setup() {
   }
 
   // --- Step 3: WiFi (must be before NTP/WebServer) ---
+  displayMgr.showBootStatus("Conectando WiFi...");
   Preferences wifiPref;
   wifiPref.begin("wifi", true); // true = readonly
   String savedSSID = wifiPref.getString("ssid", String(WIFI_SSID));
@@ -213,9 +238,11 @@ void setup() {
   }
 
   // --- Step 4: Safety Watchdog (sensors) ---
+  displayMgr.showBootStatus("Sensores...");
   safety.begin();
 
   // --- Step 5: Time Manager (RTC + NTP — needs WiFi) ---
+  displayMgr.showBootStatus("RTC + NTP...");
   timeMgr.begin();
 
   // --- Step 5: Fertilizer Manager (NVS state) ---
@@ -247,10 +274,12 @@ void setup() {
   }
 
   // --- Step 7: Web Dashboard + Serial UI ---
+  displayMgr.showBootStatus("Web Dashboard...");
   webMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety, &notifyMgr);
 
-  // --- Step 7b: OLED Display ---
+  // --- Step 7b: OLED Display (full init with managers) ---
   displayMgr.begin(&timeMgr, &waterMgr, &fertMgr, &safety, &webMgr);
+  displayMgr.showBootStatus("Sistema pronto!", "Iniciando loop...");
 
   // --- Step 8: Canister filter ON by default ---
   digitalWrite(PIN_CANISTER, LOW); // SSR: LOW = relay ON
@@ -260,10 +289,15 @@ void setup() {
   notifyMgr.begin();
   notifyMgr.setLanguage(webMgr.getLanguage());
 
-  // --- Step 10: Hardware Watchdog (10s timeout, auto-reboot on freeze) ---
-  esp_task_wdt_init(10, true); // 10 seconds, panic (reboot) on timeout
-  esp_task_wdt_add(NULL);      // Register main task
-  Serial.println("[WDT] Hardware watchdog enabled (10s timeout).");
+  // --- Step 10: Disable Task Watchdog ---
+  // The Arduino framework's task WDT conflicts with our long-running loop
+  // (ultrasonic pulseIn blocks ~300ms, I2C transfers, etc). The system already
+  // has a comprehensive SafetyWatchdog (sensors, emergency shutdown, overflow
+  // detection) so the task WDT is redundant. Disable it to prevent false
+  // reboots.
+  disableLoopWDT();
+  disableCore0WDT();
+  Serial.println("[WDT] Task watchdog disabled (SafetyWatchdog active).");
 
   Serial.println("[Main] === System Ready ===\n");
 }
@@ -413,9 +447,6 @@ void loop() {
             waterMgr.setLitersPerCm(lPerCm); // For inline calibration
 
             // Compute canister safe level from percentage
-            // canisterSafePct = min water % for canister → convert to cm
-            // (ultrasonic dist) Higher % = needs more water = lower ultrasonic
-            // distance
             float effH =
                 (float)webMgr.getAquariumVolume() / lPerCm; // effective height
             float canisterSafeCm =
@@ -492,7 +523,6 @@ void loop() {
   // ---- 7. OLED DISPLAY ----
   displayMgr.update();
 
-  // ---- 8. WATCHDOG RESET + YIELD ----
-  esp_task_wdt_reset(); // Feed the hardware watchdog
-  delay(10);            // ~100 Hz loop: fast enough for safety, gentle on CPU
+  // ---- 8. YIELD ----
+  delay(50); // ~20 Hz loop: enough for safety, yields to FreeRTOS IDLE
 }

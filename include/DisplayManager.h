@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Config.h"
-#include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Arduino.h>
 #include <Wire.h>
 
 // Forward declarations
@@ -18,7 +18,13 @@ class DisplayManager {
 public:
   DisplayManager();
 
-  /// Initialize display hardware (I2C address 0x3C)
+  /// Early hardware init — call before WiFi to show boot screen immediately
+  bool initHardware();
+
+  /// Show a boot progress line on the OLED (call during setup steps)
+  void showBootStatus(const char *line1, const char *line2 = nullptr);
+
+  /// Full initialization with manager pointers (call after all managers ready)
   void begin(TimeManager *time, WaterManager *water, FertManager *fert,
              SafetyWatchdog *safety, WebManager *web);
 
@@ -43,7 +49,7 @@ private:
 
   // Display dimensions
   static constexpr uint8_t SCREEN_WIDTH = 128;
-  static constexpr uint8_t SCREEN_HEIGHT = 64;
+  static constexpr uint8_t SCREEN_HEIGHT = 32;
   static constexpr int8_t OLED_RESET = -1; // No reset pin
   static constexpr uint8_t OLED_ADDR = 0x3C;
 

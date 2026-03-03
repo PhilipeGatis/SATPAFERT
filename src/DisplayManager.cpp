@@ -15,7 +15,54 @@ DisplayManager::DisplayManager()
       _currentPage(0), _lastPageSwitch(0) {}
 
 // =============================================================================
-// BEGIN
+// INIT HARDWARE — call early in setup() to show boot screen immediately
+// =============================================================================
+bool DisplayManager::initHardware() {
+  if (!_display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
+    Serial.println("[Display] SSD1306 init FAILED!");
+    return false;
+  }
+
+  Serial.println("[Display] SSD1306 128x32 initialized OK.");
+
+  // Quick white flash — confirms panel works
+  _display.clearDisplay();
+  _display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+  _display.display();
+  delay(500);
+
+  // Splash screen (128x32: 4 lines of 8px each)
+  _display.clearDisplay();
+  _display.setTextColor(SSD1306_WHITE);
+  _display.setTextSize(2);
+  _display.setCursor(30, 0);
+  _display.print(F("IARA"));
+  _display.setTextSize(1);
+  _display.setCursor(30, 20);
+  _display.print(F("v3.0.0"));
+  _display.display();
+  return true;
+}
+
+// =============================================================================
+// SHOW BOOT STATUS — display boot progress on OLED
+// =============================================================================
+void DisplayManager::showBootStatus(const char *line1, const char *line2) {
+  _display.clearDisplay();
+  _display.setTextColor(SSD1306_WHITE);
+  _display.setTextSize(1);
+  _display.setCursor(0, 0);
+  _display.print(F("IARA > "));
+  _display.println(line1);
+  if (line2) {
+    _display.setCursor(0, 12);
+    _display.println(line2);
+  }
+  _display.display();
+}
+
+// =============================================================================
+// BEGIN — full init with manager pointers (call after all managers ready)
 // =============================================================================
 void DisplayManager::begin(TimeManager *time, WaterManager *water,
                            FertManager *fert, SafetyWatchdog *safety,
@@ -25,29 +72,6 @@ void DisplayManager::begin(TimeManager *time, WaterManager *water,
   _fert = fert;
   _safety = safety;
   _web = web;
-
-  if (!_display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    Serial.println("[Display] SSD1306 init FAILED!");
-    return;
-  }
-
-  Serial.println("[Display] SSD1306 initialized OK.");
-
-  // Splash screen
-  _display.clearDisplay();
-  _display.setTextColor(SSD1306_WHITE);
-
-  _display.setTextSize(2);
-  _display.setCursor(10, 10);
-  _display.println(F("IARA"));
-
-  _display.setTextSize(1);
-  _display.setCursor(30, 35);
-  _display.println(F("v3.0.0"));
-  _display.setCursor(15, 50);
-  _display.println(F("Aquarium System"));
-
-  _display.display();
 
   _lastPageSwitch = millis();
 }
@@ -63,6 +87,10 @@ void DisplayManager::update() {
   _lastPageSwitch = now;
 
   _display.clearDisplay();
+
+  // Draw persistent water level bar in yellow zone on ALL pages
+  static const char *pageNames[] = {"REDE", "AQUARIO", "ESTOQUE", "AGENDA"};
+  _drawHeader(pageNames[_currentPage]);
 
   switch (_currentPage) {
   case 0:
@@ -84,151 +112,183 @@ void DisplayManager::update() {
 }
 
 // =============================================================================
-// HELPER — draw page header with title and separator line
+// HELPER — yellow zone: water level bar + page title (y=0 to 8)
 // =============================================================================
 void DisplayManager::_drawHeader(const char *title) {
   _display.setTextSize(1);
   _display.setTextColor(SSD1306_WHITE);
-  _display.setCursor(0, 0);
-  _display.println(title);
-  _display.drawLine(0, 10, SCREEN_WIDTH - 1, 10, SSD1306_WHITE);
+
+  // Water level bar: sensor distance inverted (less dist = more water)
+  // Sensor range: 0cm (full) to 30cm (empty)
+  float dist = _safety->getLastDistance();
+  const float maxDist = 30.0f; // cm — sensor at top, water below
+
+  if (dist >= 0) {
+    float pct = 1.0f - (dist / maxDist); // invert: less distance = more water
+    if (pct > 1.0f)
+      pct = 1.0f;
+    if (pct < 0.0f)
+      pct = 0.0f;
+
+    // Progress bar: x=0 to 83 (leave room for title)
+    uint8_t barW = 84;
+    _display.drawRect(0, 0, barW, 8, SSD1306_WHITE);
+    uint8_t fillW = (uint8_t)(pct * (barW - 2));
+    if (fillW > 0) {
+      _display.fillRect(1, 1, fillW, 6, SSD1306_WHITE);
+    }
+
+    // Percentage label inside bar
+    int pctVal = (int)(pct * 100);
+    char buf[5];
+    snprintf(buf, sizeof(buf), "%d%%", pctVal);
+    uint8_t textW = strlen(buf) * 6;
+    uint8_t tx = (barW - textW) / 2;
+    _display.setTextColor(fillW > (barW / 2) ? SSD1306_BLACK : SSD1306_WHITE);
+    _display.setCursor(tx, 0);
+    _display.print(buf);
+    _display.setTextColor(SSD1306_WHITE);
+  } else {
+    // No sensor reading
+    _display.setCursor(0, 0);
+    _display.print(F("Nivel: --"));
+  }
+
+  // Page title right-aligned
+  uint8_t titleW = strlen(title) * 6;
+  _display.setCursor(SCREEN_WIDTH - titleW, 0);
+  _display.print(title);
 }
 
 // =============================================================================
 // PAGE 1 — Network Info
 // =============================================================================
 void DisplayManager::_drawNetworkPage() {
-  _drawHeader(">> REDE");
-
-  _display.setCursor(0, 14);
 
   if (WiFi.status() == WL_CONNECTED) {
-    _display.print(F("WiFi: "));
-    _display.println(WiFi.SSID());
-
-    _display.print(F("IP: "));
+    _display.setCursor(0, 10);
     _display.println(WiFi.localIP());
-
-    _display.print(F("RSSI: "));
+    _display.print(F("RSSI:"));
     _display.print(WiFi.RSSI());
-    _display.println(F(" dBm"));
+    _display.print(F("dBm"));
   } else {
-    _display.println(F("WiFi: Desconectado"));
-
-    _display.print(F("AP IP: "));
-    _display.println(WiFi.softAPIP());
-
-    _display.print(F("AP SSID: "));
-    _display.println(F(AP_SSID));
+    _display.setCursor(0, 10);
+    _display.println(F("WiFi: OFF"));
+    _display.print(F("AP: "));
+    _display.print(WiFi.softAPIP());
   }
-
-  // Page indicator
-  _display.setCursor(110, 56);
-  _display.print(F("1/4"));
 }
 
 // =============================================================================
 // PAGE 2 — Aquarium Status
 // =============================================================================
 void DisplayManager::_drawAquariumPage() {
-  _drawHeader(">> AQUARIO");
 
-  _display.setCursor(0, 14);
-
-  // Volume
-  uint32_t vol = _web->getAquariumVolume();
-  _display.print(F("Volume: "));
-  _display.print(vol);
-  _display.println(F(" L"));
-
-  // Water level (distance from sensor)
+  _display.setCursor(0, 10);
   float dist = _safety->getLastDistance();
-  _display.print(F("Nivel: "));
+  _display.print(F("Nivel:"));
   if (dist >= 0) {
     _display.print(dist, 1);
-    _display.println(F(" cm"));
+    _display.print(F("cm"));
   } else {
-    _display.println(F("-- cm"));
+    _display.print(F("--"));
   }
-
-  // TPA state
-  _display.print(F("TPA: "));
-  _display.println(_water->getStateName());
-
-  // Canister
-  _display.print(F("Canister: "));
+  _display.print(F(" Can:"));
   _display.println(_water->isCanisterOn() ? "ON" : "OFF");
 
-  _display.setCursor(110, 56);
-  _display.print(F("2/4"));
+  _display.print(F("TPA: "));
+  _display.print(_water->getStateName());
 }
 
 // =============================================================================
 // PAGE 3 — Fertilizer & Prime Stock
 // =============================================================================
 void DisplayManager::_drawStockPage() {
-  _drawHeader(">> ESTOQUE (mL)");
+  _display.setTextSize(1);
+  _display.setTextColor(SSD1306_WHITE);
 
-  _display.setCursor(0, 14);
+  // Bar chart: 5 channels (F1-F4 + Prime)
+  const uint8_t numBars = NUM_FERTS + 1;
+  const uint8_t barW = 20;
+  const uint8_t gap = (SCREEN_WIDTH - numBars * barW) / (numBars + 1);
+  const uint8_t barTop = 10;
+  const uint8_t barH = SCREEN_HEIGHT - barTop; // 22px
+  const float maxStock = 500.0f;
 
-  // Fert 1-4 on two lines (compact)
-  for (uint8_t ch = 0; ch < NUM_FERTS; ch++) {
-    String name = _fert->getName(ch);
-    if (name.length() == 0) {
-      name = "F" + String(ch + 1);
-    }
-    // Truncate name to 4 chars for space
-    if (name.length() > 4)
-      name = name.substring(0, 4);
+  // --- Pass 1: Draw bars in normal rotation (0) ---
+  for (uint8_t i = 0; i < numBars; i++) {
+    uint8_t x = gap + i * (barW + gap);
+    float stock = _fert->getStockML(i);
+    float pct = stock / maxStock;
+    if (pct > 1.0f)
+      pct = 1.0f;
+    if (pct < 0.0f)
+      pct = 0.0f;
+    uint8_t fillH = (uint8_t)(pct * barH);
 
-    _display.print(name);
-    _display.print(F(":"));
-    _display.print(_fert->getStockML(ch), 0);
+    // Outlined bar
+    _display.drawRect(x, barTop, barW, barH, SSD1306_WHITE);
 
-    if (ch < NUM_FERTS - 1) {
-      _display.print(F("  "));
+    // Filled portion from bottom up
+    if (fillH > 0) {
+      _display.fillRect(x + 1, barTop + barH - fillH, barW - 2, fillH,
+                        SSD1306_WHITE);
     }
   }
-  _display.println();
 
-  // Prime
-  _display.println();
-  _display.print(F("Prime: "));
-  _display.print(_fert->getStockML(NUM_FERTS), 0);
-  _display.println(F(" mL"));
+  // --- Pass 2: Draw rotated percentage text ---
+  // Rotation 3 (90° CCW): text reads bottom-to-top
+  // Physical (px, py) from logical: px = ly, py = 31 - lx
+  _display.setRotation(3);
+  _display.setTextSize(1);
 
-  _display.setCursor(110, 56);
-  _display.print(F("3/4"));
+  for (uint8_t i = 0; i < numBars; i++) {
+    uint8_t barX = gap + i * (barW + gap);
+    float stock = _fert->getStockML(i);
+    float pct = stock / maxStock;
+    if (pct > 1.0f)
+      pct = 1.0f;
+    if (pct < 0.0f)
+      pct = 0.0f;
+    uint8_t fillH = (uint8_t)(pct * barH);
+    int pctVal = (int)(pct * 100);
+
+    char pctStr[5];
+    snprintf(pctStr, sizeof(pctStr), "%d", pctVal);
+    uint8_t len = strlen(pctStr);
+
+    // Center text in bar area (barTop to SCREEN_HEIGHT)
+    // In rotation 3: lx maps to physical y, ly maps to physical x
+    // Physical bar spans y: barTop to SCREEN_HEIGHT-1
+    // So lx range: (32-SCREEN_HEIGHT) to (32-barTop-1) = 0 to 21 for 32px
+    // height
+    uint8_t textPxH = len * 6;
+    uint8_t lx = (SCREEN_HEIGHT - barTop - textPxH) / 2;
+    uint8_t ly = barX + (barW - 8) / 2;
+
+    // Text color: black on filled (>50%), white on empty
+    if (fillH > barH / 2) {
+      _display.setTextColor(SSD1306_BLACK);
+    } else {
+      _display.setTextColor(SSD1306_WHITE);
+    }
+
+    _display.setCursor(lx, ly);
+    _display.print(pctStr);
+  }
+
+  _display.setRotation(0); // Restore normal rotation
+  _display.setTextColor(SSD1306_WHITE);
 }
 
 // =============================================================================
 // PAGE 4 — Schedules
 // =============================================================================
 void DisplayManager::_drawSchedulePage() {
-  _drawHeader(">> AGENDAMENTOS");
 
-  _display.setCursor(0, 14);
-
-  // Next fertilization (show CH1 schedule as reference)
-  _display.print(F("Fert: "));
-  for (uint8_t ch = 0; ch < NUM_FERTS; ch++) {
-    uint8_t h = _fert->getSchedHour(ch);
-    uint8_t m = _fert->getSchedMinute(ch);
-    if (ch > 0)
-      _display.print(F(" "));
-    if (h < 10)
-      _display.print('0');
-    _display.print(h);
-    _display.print(':');
-    if (m < 10)
-      _display.print('0');
-    _display.print(m);
-  }
-  _display.println();
-
-  // TPA schedule
-  _display.println();
-  _display.print(F("TPA: "));
+  // Line 2: TPA schedule
+  _display.setCursor(0, 10);
+  _display.print(F("TPA:"));
   uint8_t th = _web->getTpaHour();
   uint8_t tm = _web->getTpaMinute();
   if (th < 10)
@@ -238,19 +298,16 @@ void DisplayManager::_drawSchedulePage() {
   if (tm < 10)
     _display.print('0');
   _display.print(tm);
-
   uint16_t interval = _web->getTpaInterval();
   if (interval > 0) {
-    _display.print(F(" (a cada "));
+    _display.print(F(" /"));
     _display.print(interval);
-    _display.print(F("d)"));
+    _display.print(F("d"));
   }
-  _display.println();
 
-  // Current time
-  _display.println();
+  // Line 3: Current time
+  _display.setCursor(0, 22);
   DateTime now = _time->now();
-  _display.print(F("Agora: "));
   if (now.hour() < 10)
     _display.print('0');
   _display.print(now.hour());
@@ -262,7 +319,4 @@ void DisplayManager::_drawSchedulePage() {
   if (now.second() < 10)
     _display.print('0');
   _display.print(now.second());
-
-  _display.setCursor(110, 56);
-  _display.print(F("4/4"));
 }
