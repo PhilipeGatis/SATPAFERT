@@ -475,7 +475,7 @@ void loop() {
     }
   } else if (waterMgr.getState() == TPAState::ERROR) {
     if (!tpaErrorNotified) {
-      notifyMgr.notifyTPAError("Timeout ou falha durante o ciclo TPA.");
+      notifyMgr.notifyTPAError(waterMgr.getLastErrorMsg().c_str());
       tpaErrorNotified = true;
     }
   } else if (waterMgr.isRunning()) {

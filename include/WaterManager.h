@@ -81,6 +81,9 @@ public:
   String getLastTPATime() const { return _lastTPATime; }
   void setLastTPATime(const String &t) { _lastTPATime = t; }
 
+  /// Get last TPA error message (for notifications)
+  String getLastErrorMsg() const { return _lastErrorMsg; }
+
 private:
   TPAState _state;
   SafetyWatchdog *_safety;
@@ -114,6 +117,7 @@ private:
 
   // Telemetry
   String _lastTPATime;
+  String _lastErrorMsg;
 
   // ---- State handlers ----
   void _enterState(TPAState newState);

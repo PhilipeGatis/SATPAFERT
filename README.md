@@ -154,6 +154,8 @@ The system is designed with a **safety-first** approach to prevent flooding, equ
 | **Emergency shutdown** | `emergency_stop` command turns off ALL actuators immediately. |
 | **CPU throttle** | Main loop runs at ~100 Hz (`delay(10)`), preventing overheating and leaving CPU headroom for WiFi/TCP stack. |
 | **Pump auto-calibration** | Flow rates measured inline during TPA (Δlevel × litersPerCm / Δtime). Dynamic timeouts = `(volume / flow) × 1.5`. First TPA uses safe 30s/15s defaults. |
+| **Mandatory TPA config** | TPA will not start unless all required parameters are configured: aquarium dimensions, reservoir volume, drain %, and canister safe level %. Prevents running with invalid/default values. |
+| **Canister safe level (%)** | Configurable minimum water level (as % of aquarium height) required to safely turn the canister back on after a TPA error. If the water is below this threshold (e.g. error during drain), the canister stays OFF to prevent running dry. |
 
 ### Hardware Recommendations
 

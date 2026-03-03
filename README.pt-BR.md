@@ -154,6 +154,8 @@ O sistema foi projetado com abordagem **safety-first** para prevenir alagamentos
 | **Desligamento de emergência** | Comando `emergency_stop` desliga TODOS os atuadores imediatamente. |
 | **Throttle de CPU** | Loop principal roda a ~100 Hz (`delay(10)`), evitando superaquecimento e deixando CPU livre para WiFi/TCP. |
 | **Auto-calibração de bombas** | Vazão medida durante a TPA (Δnível × litrosPorCm / Δtempo). Timeouts dinâmicos = `(volume / vazão) × 1.5`. Primeira TPA usa defaults seguros de 30s/15s. |
+| **Config obrigatória p/ TPA** | TPA não inicia sem todas as configs parametrizadas: dimensões do aquário, volume do reservatório, % de troca e % nível seguro do canister. Previne execução com valores padrão/inválidos. |
+| **Nível seguro do canister (%)** | Porcentagem mínima configurável de água no aquário para religar o canister com segurança após erro na TPA. Se o nível estiver abaixo (ex: erro durante drenagem), o canister permanece OFF para não funcionar a seco. |
 
 ### Recomendações de Hardware
 

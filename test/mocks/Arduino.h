@@ -82,6 +82,15 @@ public:
   String operator+(int rhs) const {
     return String((_str + std::to_string(rhs)).c_str());
   }
+  String &operator+=(const String &rhs) {
+    _str += rhs._str;
+    return *this;
+  }
+  String &operator+=(const char *rhs) {
+    if (rhs)
+      _str += rhs;
+    return *this;
+  }
   friend String operator+(const char *lhs, const String &rhs) {
     return String((std::string(lhs ? lhs : "") + rhs._str).c_str());
   }
