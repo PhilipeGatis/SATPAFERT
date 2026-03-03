@@ -258,6 +258,7 @@ void setup() {
 
   // --- Step 9: Notifications ---
   notifyMgr.begin();
+  notifyMgr.setLanguage(webMgr.getLanguage());
 
   // --- Step 10: Hardware Watchdog (10s timeout, auto-reboot on freeze) ---
   esp_task_wdt_init(10, true); // 10 seconds, panic (reboot) on timeout

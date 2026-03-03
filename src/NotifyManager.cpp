@@ -13,8 +13,8 @@ static Preferences _nPrefs;
 // ============================================================================
 
 NotifyManager::NotifyManager()
-    : _dailyReportHour(8), _dailyReportMinute(0), _dailyReportSent(false),
-      _dailyCount(0), _lastResetDay(0) {
+    : _lang(LANG_PT), _dailyReportHour(8), _dailyReportMinute(0),
+      _dailyReportSent(false), _dailyCount(0), _lastResetDay(0) {
   for (uint8_t i = 0; i < NOTIFY_TYPE_COUNT; i++) {
     _typeEnabled[i] = true; // All enabled by default
     _lastNotifyMs[i] = 0;
@@ -73,54 +73,55 @@ void NotifyManager::update(uint8_t currentHour, uint8_t currentMinute) {
 void NotifyManager::notifyTPAComplete() {
   if (!_canSend(NOTIFY_TPA_COMPLETE))
     return;
-  _send("TPA Completa ✅", "Troca parcial de água finalizada com sucesso.",
-        "42", "10");
+  const auto &s = NOTIFY_STRINGS[_lang];
+  _send(s.tpaCompleteTitle, s.tpaCompleteMsg, "42", "10");
 }
 
 void NotifyManager::notifyTPAError(const char *reason) {
   if (!_canSend(NOTIFY_TPA_ERROR))
     return;
+  const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
-  snprintf(msg, sizeof(msg), "Erro durante TPA: %s", reason);
-  _send("Erro na TPA ❌", msg, "2", "8");
+  snprintf(msg, sizeof(msg), s.tpaErrorFmt, reason);
+  _send(s.tpaErrorTitle, msg, "2", "8");
 }
 
 void NotifyManager::notifyFertLowStock(uint8_t channel, float remainingML,
                                        float thresholdML) {
   if (!_canSend(NOTIFY_FERT_LOW_STOCK))
     return;
+  const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
-  snprintf(msg, sizeof(msg),
-           "Canal %d: %.0f mL restantes (limiar: %.0f mL). Reabasteça!",
-           channel + 1, remainingML, thresholdML);
-  _send("Estoque Baixo ⚠️", msg, "33", "5");
+  snprintf(msg, sizeof(msg), s.fertLowStockFmt, channel + 1, remainingML,
+           thresholdML);
+  _send(s.fertLowStockTitle, msg, "33", "5");
 }
 
 void NotifyManager::notifyEmergency(const char *reason) {
   if (!_canSend(NOTIFY_EMERGENCY))
     return;
+  const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
-  snprintf(msg, sizeof(msg), "ALERTA: %s", reason);
-  _send("EMERGÊNCIA 🚨", msg, "4", "11");
+  snprintf(msg, sizeof(msg), s.emergencyFmt, reason);
+  _send(s.emergencyTitle, msg, "4", "11");
 }
 
 void NotifyManager::notifyFertComplete(uint8_t channel, float doseML) {
   if (!_canSend(NOTIFY_FERT_COMPLETE))
     return;
+  const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
-  snprintf(msg, sizeof(msg), "Canal %d: %.1f mL dosado com sucesso.",
-           channel + 1, doseML);
-  _send("Fertilização OK 🧪", msg, "31", "0");
+  snprintf(msg, sizeof(msg), s.fertCompleteFmt, channel + 1, doseML);
+  _send(s.fertCompleteTitle, msg, "31", "0");
 }
 
 void NotifyManager::notifyDailyLevel(float levelCm) {
   if (!_canSend(NOTIFY_DAILY_LEVEL))
     return;
+  const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
-  snprintf(msg, sizeof(msg),
-           "Nível atual: %.1f cm (distância do sensor). Verifique evaporação.",
-           levelCm);
-  _send("Nível Diário 📊", msg, "15", "0");
+  snprintf(msg, sizeof(msg), s.dailyLevelFmt, levelCm);
+  _send(s.dailyLevelTitle, msg, "15", "0");
 }
 
 void NotifyManager::sendTest() {
@@ -128,9 +129,8 @@ void NotifyManager::sendTest() {
     Serial.println("[Notify] Cannot send test: no Pushsafer key configured.");
     return;
   }
-  bool ok = _send("Teste IARA",
-                  "Notificação de teste do sistema de automação do aquário.",
-                  "1", "10");
+  const auto &s = NOTIFY_STRINGS[_lang];
+  bool ok = _send(s.testTitle, s.testMsg, "1", "10");
   Serial.printf("[Notify] Test notification %s.\n", ok ? "SENT" : "FAILED");
 }
 

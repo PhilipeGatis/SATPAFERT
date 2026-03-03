@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Config.h"
+#include "NotifyStrings.h"
 #include <Arduino.h>
 
 /// @brief Notification event types (each has independent cooldown)
@@ -42,6 +43,10 @@ public:
   String getPrivateKey() const { return _privateKey; }
   bool isEnabled() const { return _privateKey.length() > 0; }
 
+  void setLanguage(uint8_t lang) {
+    _lang = (lang < LANG_COUNT) ? (Lang)lang : LANG_PT;
+  }
+
   void setTypeEnabled(NotifyType type, bool on);
   bool isTypeEnabled(NotifyType type) const;
 
@@ -62,6 +67,7 @@ public:
 
 private:
   String _privateKey;
+  Lang _lang;
   bool _typeEnabled[NOTIFY_TYPE_COUNT];
   uint8_t _dailyReportHour;
   uint8_t _dailyReportMinute;
