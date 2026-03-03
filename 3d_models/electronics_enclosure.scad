@@ -250,18 +250,27 @@ module ac_labels() {
 // PAINEL FRONTAL - Sensores (RJ45)
 // ============================================================
 module front_panel_cutouts() {
-  panel_y = box_depth / 2; // Front panel
+  panel_y = box_depth / 2;
   rj45_spacing = rj45_w + 8;
+  sensor_z = wall + psu_h - 4 + rj45_h / 2;
 
-  // 3 conectores RJ45 sensores (acima da fonte, z alto)
-  sensor_z = wall + psu_h - 4 + rj45_h / 2; // acima da fonte, -5mm
-  for (i = [0:rj45_qty - 1]) {
-    x_offset = -(rj45_qty - 1) * rj45_spacing / 2 + i * rj45_spacing;
-    translate([x_offset, panel_y + 0.1, sensor_z])
-      rotate([90, 0, 0]) // Rotate to face outwards from front
-        translate([-rj45_w / 2, -rj45_h / 2, 0])
-          cube([rj45_w, rj45_h, wall + 0.2]);
-  }
+  // ULTRA (RJ45) - esquerda
+  translate([-(rj45_spacing), panel_y + 0.1, sensor_z])
+    rotate([90, 0, 0])
+      translate([-rj45_w / 2, -rj45_h / 2, 0])
+        cube([rj45_w, rj45_h, wall + 0.2]);
+
+  // CAP (JST XH 3 pinos - 8×6mm) - centro
+  translate([0, panel_y + 0.1, sensor_z])
+    rotate([90, 0, 0])
+      translate([-8 / 2, -6 / 2, 0])
+        cube([8, 6, wall + 0.2]);
+
+  // BOIA (RJ45) - direita
+  translate([rj45_spacing, panel_y + 0.1, sensor_z])
+    rotate([90, 0, 0])
+      translate([-rj45_w / 2, -rj45_h / 2, 0])
+        cube([rj45_w, rj45_h, wall + 0.2]);
 }
 
 module front_panel_labels() {
@@ -273,8 +282,8 @@ module front_panel_labels() {
 
   for (i = [0:rj45_qty - 1]) {
     x_offset = -(rj45_qty - 1) * rj45_spacing / 2 + i * rj45_spacing;
-    translate([x_offset, panel_y + 0.1, sensor_z + rj45_h / 2 + 3])
-      rotate([-90, 0, 0]) // Rotate to face outwards from front
+    translate([x_offset, panel_y + 0.1, sensor_z / 2])
+      rotate([-90, 180, 0]) // Face outward, text right-side-up
         linear_extrude(0.6)
           text(
             labels[i], size=3.5, halign="center", valign="center",
@@ -290,26 +299,17 @@ module right_panel_cutouts() {
   panel_x = box_width / 2;
   rj45_spacing = rj45_w + 8;
 
-  // IEC C14 com fusível - AC IN
+  // Tomada AC AS-08A Tripolar com porta fusível (rasgo 31.2×27.2mm)
   translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 2])
-    rotate([0, -90, 0]) {
-      translate([-iec_fuse_w / 2, -iec_fuse_h / 2, 0])
-        cube([iec_fuse_w, iec_fuse_h, wall + 0.2]);
-      translate([-iec_fuse_mount_w / 2, 0, 0])
-        cylinder(d=iec_fuse_mount_d, h=wall + 0.2);
-      translate([iec_fuse_mount_w / 2, 0, 0])
-        cylinder(d=iec_fuse_mount_d, h=wall + 0.2);
-    }
+    rotate([0, -90, 0])
+      translate([-31.2 / 2, -27.2 / 2, 0])
+        cube([31.2, 27.2, wall + 0.2]);
 
-  // Tomada NBR 14136 canister
+  // Tomada NBR 14136 canister (rasgo retangular snap-in 40.5×21.7mm)
   translate([panel_x + 0.1, 25, base_height / 2 + 2])
-    rotate([0, -90, 0]) {
-      cylinder(d=nbr_outlet_d, h=wall + 0.2);
-      translate([0, nbr_outlet_mount_spacing / 2, 0])
-        cylinder(d=nbr_outlet_mount_d, h=wall + 0.2);
-      translate([0, -nbr_outlet_mount_spacing / 2, 0])
-        cylinder(d=nbr_outlet_mount_d, h=wall + 0.2);
-    }
+    rotate([0, -90, 0])
+      translate([-21.7 / 2, -40.5 / 2, 0])
+        cube([21.7, 40.5, wall + 0.2]);
 }
 
 // --- Etiquetas painel direito ---
@@ -317,7 +317,7 @@ module sensor_labels() {
   panel_x = box_width / 2;
 
   // Label "AC IN"
-  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + iec_fuse_h / 2 + 6])
+  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 21.7 / 2 + 11])
     rotate([90, 0, 90])
       linear_extrude(0.6)
         text(
@@ -469,6 +469,16 @@ module base() {
         // Fundo sólido
         rounded_box(box_width, box_depth, wall, corner_r);
 
+        // Abas de montagem na parede (lados opostos: esquerdo e direito)
+        mount_tab_w = 20;
+        mount_tab_h = 15;
+        // Aba esquerda
+        translate([-box_width / 2 - mount_tab_h, -mount_tab_w / 2, 0])
+          cube([mount_tab_h, mount_tab_w, wall]);
+        // Aba direita
+        translate([box_width / 2, -mount_tab_w / 2, 0])
+          cube([mount_tab_h, mount_tab_w, wall]);
+
         // Bosses para parafusos
         for (pos = screw_positions())
           translate([pos[0], pos[1], 0])
@@ -530,27 +540,24 @@ module base() {
       // Painel frontal (sensores RJ45)
       front_panel_cutouts();
 
-      // Ventilação no fundo (apenas sob a fonte, onde gera calor)
+      // Ventilação no fundo (sob a fonte)
       translate([0, -box_depth / 2 + wall + 2 + psu_d / 2, 0])
-        vent_slots(4, vent_slot_w, vent_slot_l, vent_spacing);
+        vent_slots(8, vent_slot_w, vent_slot_l, vent_spacing);
 
-      // Cooler 40mm no painel frontal (CENTRALIZADO)
-      fan_z = wall + fan_size / 2 + 5;
-      translate([-80, box_depth / 2 - wall - 0.1, fan_z])
-        rotate([-90, 0, 0]) {
-          // Abertura circular
-          cylinder(d=fan_size - 4, h=wall + 0.2);
-          // Grille radial
-          for (a = [0:30:150])
-            rotate([0, 0, a])
-              translate([-fan_size / 2 + 2, -1, 0])
-                cube([fan_size - 4, 2, wall + 0.2]);
-          // Furos M3
-          for (dx = [-fan_hole_spacing / 2, fan_hole_spacing / 2])
-            for (dy = [-fan_hole_spacing / 2, fan_hole_spacing / 2])
-              translate([dx, dy, 0])
-                cylinder(d=fan_screw_d, h=wall + 0.2);
-        }
+      // Ventilação no painel traseiro (lateral da fonte, convecção)
+      for (row = [0:2]) {
+        vent_z = wall + 8 + row * 14;
+        translate([-60, -box_depth / 2 - 0.1, vent_z])
+          cube([120, wall + 0.2, 3]);
+      }
+
+      // Furos de montagem nas abas (parafuso simples)
+      // Aba esquerda
+      translate([-box_width / 2 - 15 / 2, 0, wall / 2])
+        cylinder(d=4.5, h=wall + 0.2, center=true, $fn=20);
+      // Aba direita
+      translate([box_width / 2 + 15 / 2, 0, wall / 2])
+        cylinder(d=4.5, h=wall + 0.2, center=true, $fn=20);
       // Pés de borracha (recesso)
       for (x = [-box_width / 2 + 15, box_width / 2 - 15])
         for (y = [-box_depth / 2 + 15, box_depth / 2 - 15])
