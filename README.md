@@ -168,6 +168,106 @@ The system is designed with a **safety-first** approach to prevent flooding, equ
 
 ---
 
+## 📲 Push Notifications
+
+IARA sends real-time push notifications to your phone via [Pushsafer](https://www.pushsafer.com/). Each notification type can be individually enabled or disabled via the dashboard.
+
+### Notification Types
+
+| Type | Trigger | Example Message |
+|---|---|---|
+| **TPA Complete** | Water change finished successfully | `✅ TPA completed successfully` |
+| **TPA Error** | Timeout or failure during TPA | `⚠️ Drain timeout \| Canister: OFF (nivel 45%, min: 60%)` |
+| **Fert Low Stock** | Fertilizer stock below threshold | `⚠️ CH1 Potássio: 15 mL remaining (threshold: 50 mL)` |
+| **Emergency** | Emergency shutdown triggered | `🚨 Emergency shutdown activated!` |
+| **Fert Complete** | Fertilizer dose completed | `💧 CH2 dosed 5.0 mL` |
+| **Daily Level** | Scheduled daily water level report | `📊 Water level: 12.3 cm` |
+
+### Rate Limiting
+
+| Parameter | Value |
+|---|---|
+| Cooldown per type | 5 minutes (same type won't fire twice) |
+| Max per day | 20 notifications total |
+| Daily counter reset | Midnight (auto) |
+
+### Setup
+
+1. Create a free account at [pushsafer.com](https://www.pushsafer.com/)
+2. Copy your **Private Key** from the Pushsafer dashboard
+3. Enter the key via IARA dashboard (`Notifications → API Key`) or via API:
+   ```bash
+   curl -X POST http://<ESP32_IP>/api/notify/key -d '{"key":"YOUR_KEY"}'
+   ```
+4. Enable/disable specific notification types via the dashboard
+
+---
+
+## ⚙️ System Configuration
+
+Before the first TPA can run, the system requires all safety-critical parameters to be configured. This ensures the water change operates safely for your specific aquarium setup.
+
+### Required Parameters (Mandatory for TPA)
+
+| Parameter | API Field | Description |
+|---|---|---|
+| **Aquarium Height** | `aqHeight` | Internal height in cm |
+| **Aquarium Length** | `aqLength` | Internal length in cm |
+| **Aquarium Width** | `aqWidth` | Internal width in cm |
+| **Reservoir Volume** | `reservoirVolume` | Reservoir capacity in liters |
+| **TPA Drain %** | `tpaPercent` | Percentage of aquarium volume to drain (e.g. 30%) |
+| **Canister Safe Level %** | `canisterSafePct` | Minimum water % required to safely turn canister ON (e.g. 60%) |
+
+> [!IMPORTANT]
+> TPA will **not start** until all 6 parameters above are configured. The dashboard shows `tpaConfigReady: true/false` to indicate readiness.
+
+### Optional Parameters
+
+| Parameter | API Field | Description |
+|---|---|---|
+| **Water Margin** | `aqMarginCm` | Distance from top edge to water surface (cm) |
+| **Prime Ratio** | `primeRatio` | mL of dechlorinator per liter of water |
+| **Reservoir Safety** | `reservoirSafetyML` | Minimum mL to keep in reservoir for pump safety |
+| **TPA Interval** | `tpaInterval` | Days between automatic TPAs (e.g. 7) |
+| **TPA Schedule** | `tpaHour`, `tpaMinute` | Time of day for automatic TPA |
+
+### Configuration via API
+
+**Aquarium dimensions:**
+```bash
+curl -X POST http://<ESP32_IP>/api/config/aquarium \
+  -H "Content-Type: application/json" \
+  -d '{"aqHeight":45, "aqLength":90, "aqWidth":40, "aqMarginCm":3, "reservoirVolume":20, "primeRatio":0.5}'
+```
+
+**TPA schedule + canister safety:**
+```bash
+curl -X POST http://<ESP32_IP>/api/schedule \
+  -H "Content-Type: application/json" \
+  -d '{"tpaInterval":7, "tpaHour":10, "tpaMinute":0, "tpaPercent":30, "canisterSafePct":60}'
+```
+
+### How Configuration is Stored
+
+All parameters are persisted in **NVS (Non-Volatile Storage)** and survive reboots and power cycles. Configuration can be set via:
+
+1. **Web Dashboard** — React SPA with forms for all parameters
+2. **REST API** — JSON endpoints for programmatic access
+3. **Serial Commands** — USB serial for debugging and initial setup
+
+### Derived Values (Auto-Calculated)
+
+| Value | Formula | Purpose |
+|---|---|---|
+| **Aquarium Volume** | `(Height - Margin) × Length × Width / 1000` | Total water volume in liters |
+| **Liters per cm** | `Length × Width / 1000` | Volume change per cm of water level |
+| **Prime dose** | `Reservoir Volume × Prime Ratio` | Auto-calculated dechlorinator dose |
+| **Drain cm** | `(Volume × TPA%) / Liters per cm` | Calculated at TPA start |
+| **Canister safe cm** | `EffHeight × (100 - SafePct) / 100` | Ultrasonic distance threshold |
+| **Dynamic timeouts** | `(Volume / Flow) × 1.5` | Calculated from calibrated flow rates |
+
+---
+
 ## 🖥️ Wokwi Simulation
 
 The project includes full support for [Wokwi](https://wokwi.com) simulation, allowing you to test the firmware **without physical hardware**.

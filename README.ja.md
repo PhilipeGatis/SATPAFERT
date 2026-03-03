@@ -168,6 +168,106 @@ graph LR
 
 ---
 
+## 📲 プッシュ通知
+
+IARAは[Pushsafer](https://www.pushsafer.com/)を通じてリアルタイムのプッシュ通知をスマートフォンに送信します。各通知タイプはダッシュボードで個別に有効/無効にできます。
+
+### 通知タイプ
+
+| タイプ | トリガー | メッセージ例 |
+|---|---|---|
+| **TPA完了** | 換水が正常に完了 | `✅ TPA completed successfully` |
+| **TPAエラー** | TPA中のタイムアウトまたは障害 | `⚠️ Drain timeout \| Canister: OFF (nivel 45%, min: 60%)` |
+| **肥料残量低下** | 在庫が閾値を下回る | `⚠️ CH1 Potássio: 15 mL remaining` |
+| **緊急事態** | 緊急シャットダウン発動 | `🚨 Emergency shutdown activated!` |
+| **投与完了** | 肥料の投与完了 | `💧 CH2 dosed 5.0 mL` |
+| **日次水位** | 定期的な水位レポート | `📊 Water level: 12.3 cm` |
+
+### レート制限
+
+| パラメータ | 値 |
+|---|---|
+| タイプ別クールダウン | 5分（同一タイプは連続発火しない） |
+| 1日の最大数 | 20通知 |
+| カウンターリセット | 深夜（自動） |
+
+### セットアップ
+
+1. [pushsafer.com](https://www.pushsafer.com/)で無料アカウントを作成
+2. Pushsaferダッシュボードから**Private Key**をコピー
+3. IARAダッシュボード（`通知 → API Key`）またはAPIでキーを入力：
+   ```bash
+   curl -X POST http://<ESP32_IP>/api/notify/key -d '{"key":"YOUR_KEY"}'
+   ```
+4. ダッシュボードで各通知タイプの有効/無効を設定
+
+---
+
+## ⚙️ システム設定
+
+最初のTPAを実行する前に、すべての安全パラメータの設定が必要です。これにより、お使いの水槽に合わせた安全な換水が保証されます。
+
+### 必須パラメータ（TPA実行に必要）
+
+| パラメータ | APIフィールド | 説明 |
+|---|---|---|
+| **水槽の高さ** | `aqHeight` | 内部の高さ（cm） |
+| **水槽の長さ** | `aqLength` | 内部の長さ（cm） |
+| **水槽の幅** | `aqWidth` | 内部の幅（cm） |
+| **リザーバー容量** | `reservoirVolume` | リザーバーの容量（リットル） |
+| **交換率** | `tpaPercent` | 排水する水量の割合（例：30%） |
+| **キャニスター安全レベル %** | `canisterSafePct` | キャニスターをONにするための最小水位%（例：60%） |
+
+> [!IMPORTANT]
+> 上記6つのパラメータがすべて設定されるまでTPAは**開始しません**。ダッシュボードで`tpaConfigReady: true/false`で準備状況を確認できます。
+
+### オプションパラメータ
+
+| パラメータ | APIフィールド | 説明 |
+|---|---|---|
+| **水面マージン** | `aqMarginCm` | 上端から水面までの距離（cm） |
+| **プライム比率** | `primeRatio` | 水1リットルあたりのカルキ抜き量（mL） |
+| **リザーバー安全量** | `reservoirSafetyML` | ポンプ安全のためのリザーバー最低量（mL） |
+| **TPA間隔** | `tpaInterval` | 自動TPA間の日数（例：7） |
+| **TPAスケジュール** | `tpaHour`, `tpaMinute` | 自動TPAの実行時刻 |
+
+### APIによる設定
+
+**水槽寸法：**
+```bash
+curl -X POST http://<ESP32_IP>/api/config/aquarium \
+  -H "Content-Type: application/json" \
+  -d '{"aqHeight":45, "aqLength":90, "aqWidth":40, "aqMarginCm":3, "reservoirVolume":20, "primeRatio":0.5}'
+```
+
+**TPAスケジュール + キャニスター安全設定：**
+```bash
+curl -X POST http://<ESP32_IP>/api/schedule \
+  -H "Content-Type: application/json" \
+  -d '{"tpaInterval":7, "tpaHour":10, "tpaMinute":0, "tpaPercent":30, "canisterSafePct":60}'
+```
+
+### 設定の保存方法
+
+すべてのパラメータは**NVS（不揮発性ストレージ）**に保存され、リブートや電源断でも維持されます。設定方法：
+
+1. **Webダッシュボード** — 全パラメータのフォームを備えたReact SPA
+2. **REST API** — プログラムアクセス用JSONエンドポイント
+3. **シリアルコマンド** — デバッグと初期セットアップ用USB
+
+### 派生値（自動計算）
+
+| 値 | 計算式 | 用途 |
+|---|---|---|
+| **水槽容量** | `(高さ - マージン) × 長さ × 幅 / 1000` | 総水量（リットル） |
+| **cm当たりリットル** | `長さ × 幅 / 1000` | 水位1cmあたりの容量変化 |
+| **プライム投与量** | `リザーバー容量 × プライム比率` | 自動計算のカルキ抜き量 |
+| **排水cm** | `(容量 × TPA%) / cm当たりリットル` | TPA開始時に計算 |
+| **キャニスター安全cm** | `有効高さ × (100 - SafePct) / 100` | 超音波距離の閾値 |
+| **動的タイムアウト** | `(容量 / 流量) × 1.5` | キャリブレーション流量から計算 |
+
+---
+
 ## 🖥️ Wokwiシミュレーション
 
 プロジェクトは[Wokwi](https://wokwi.com)シミュレーションを完全サポートしており、**物理ハードウェアなし**でファームウェアをテストできます。

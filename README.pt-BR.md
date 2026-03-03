@@ -168,7 +168,107 @@ O sistema foi projetado com abordagem **safety-first** para prevenir alagamentos
 
 ---
 
-## 🖥️ Simulação no Wokwi
+## � Notificações Push
+
+IARA envia notificações push em tempo real para o celular via [Pushsafer](https://www.pushsafer.com/). Cada tipo pode ser ativado ou desativado individualmente pelo dashboard.
+
+### Tipos de Notificação
+
+| Tipo | Gatilho | Exemplo |
+|---|---|---|
+| **TPA Completa** | TPA finalizada com sucesso | `✅ TPA finalizada com sucesso` |
+| **Erro na TPA** | Timeout ou falha durante TPA | `⚠️ Drain timeout \| Canister: OFF (nivel 45%, min: 60%)` |
+| **Fertilizante Baixo** | Estoque abaixo do limite | `⚠️ CH1 Potássio: 15 mL restante (limite: 50 mL)` |
+| **Emergência** | Desligamento de emergência | `🚨 Sistema em estado de emergência!` |
+| **Dose Completa** | Dose de fertilizante aplicada | `💧 CH2 dosou 5.0 mL` |
+| **Nível Diário** | Relatório diário de nível | `📊 Nível da água: 12.3 cm` |
+
+### Rate Limiting
+
+| Parâmetro | Valor |
+|---|---|
+| Cooldown por tipo | 5 minutos (mesmo tipo não dispara 2x) |
+| Máximo por dia | 20 notificações |
+| Reset do contador | Meia-noite (auto) |
+
+### Configuração
+
+1. Crie conta grátis em [pushsafer.com](https://www.pushsafer.com/)
+2. Copie sua **Private Key** do painel Pushsafer
+3. Insira a chave pelo dashboard IARA (`Notificações → API Key`) ou via API:
+   ```bash
+   curl -X POST http://<ESP32_IP>/api/notify/key -d '{"key":"SUA_CHAVE"}'
+   ```
+4. Ative/desative tipos específicos pelo dashboard
+
+---
+
+## ⚙️ Configuração do Sistema
+
+Antes da primeira TPA, o sistema exige que todos os parâmetros críticos de segurança estejam configurados. Isso garante que a troca de água opere com segurança para o seu aquário específico.
+
+### Parâmetros Obrigatórios (Necessários para TPA)
+
+| Parâmetro | Campo API | Descrição |
+|---|---|---|
+| **Altura do Aquário** | `aqHeight` | Altura interna em cm |
+| **Comprimento** | `aqLength` | Comprimento interno em cm |
+| **Largura** | `aqWidth` | Largura interna em cm |
+| **Volume do Reservatório** | `reservoirVolume` | Capacidade em litros |
+| **% de Troca** | `tpaPercent` | Porcentagem do volume a drenar (ex: 30%) |
+| **% Nível Seguro Canister** | `canisterSafePct` | % mínimo de água para religar canister (ex: 60%) |
+
+> [!IMPORTANT]
+> A TPA **não inicia** enquanto todos os 6 parâmetros acima não estiverem configurados. O dashboard mostra `tpaConfigReady: true/false` para indicar prontidão.
+
+### Parâmetros Opcionais
+
+| Parâmetro | Campo API | Descrição |
+|---|---|---|
+| **Margem da Água** | `aqMarginCm` | Distância da borda até a superfície (cm) |
+| **Razão do Prime** | `primeRatio` | mL de condicionador por litro de água |
+| **Segurança Reservatório** | `reservoirSafetyML` | mL mínimo a manter no reservatório |
+| **Intervalo TPA** | `tpaInterval` | Dias entre TPAs automáticas (ex: 7) |
+| **Horário TPA** | `tpaHour`, `tpaMinute` | Horário da TPA automática |
+
+### Configuração via API
+
+**Dimensões do aquário:**
+```bash
+curl -X POST http://<ESP32_IP>/api/config/aquarium \
+  -H "Content-Type: application/json" \
+  -d '{"aqHeight":45, "aqLength":90, "aqWidth":40, "aqMarginCm":3, "reservoirVolume":20, "primeRatio":0.5}'
+```
+
+**Agenda TPA + segurança canister:**
+```bash
+curl -X POST http://<ESP32_IP>/api/schedule \
+  -H "Content-Type: application/json" \
+  -d '{"tpaInterval":7, "tpaHour":10, "tpaMinute":0, "tpaPercent":30, "canisterSafePct":60}'
+```
+
+### Como a Configuração é Armazenada
+
+Todos os parâmetros são persistidos em **NVS (Non-Volatile Storage)** e sobrevivem a resets e quedas de energia. A configuração pode ser feita via:
+
+1. **Dashboard Web** — SPA React com formulários para todos os parâmetros
+2. **API REST** — Endpoints JSON para acesso programático
+3. **Comandos Serial** — USB serial para debugging e setup inicial
+
+### Valores Derivados (Calculados Automaticamente)
+
+| Valor | Fórmula | Finalidade |
+|---|---|---|
+| **Volume do Aquário** | `(Altura - Margem) × Comp × Larg / 1000` | Volume total em litros |
+| **Litros por cm** | `Comp × Larg / 1000` | Volume por cm de nível |
+| **Dose de Prime** | `Vol. Reservatório × Razão Prime` | Dose auto-calculada |
+| **cm a Drenar** | `(Volume × TPA%) / Litros por cm` | Calculado no início da TPA |
+| **cm seguro canister** | `AlturaEfet × (100 - SafePct) / 100` | Threshold ultrassônico |
+| **Timeouts dinâmicos** | `(Volume / Vazão) × 1.5` | Baseado na vazão calibrada |
+
+---
+
+## �🖥️ Simulação no Wokwi
 
 O projeto inclui suporte completo para simulação no [Wokwi](https://wokwi.com), permitindo testar o firmware **sem hardware físico**.
 
