@@ -30,11 +30,12 @@ constexpr uint8_t PIN_OPTICAL =
 constexpr uint8_t PIN_FLOAT =
     5; // Horizontal float switch reservoir (INPUT_PULLUP, active LOW)
 // --- TFT Display (ST7735, SPI) ---
-constexpr uint8_t PIN_TFT_CS = 15;   // Chip Select
-constexpr uint8_t PIN_TFT_DC = 17;   // Data/Command
-constexpr uint8_t PIN_TFT_MOSI = 23; // SPI Data
-constexpr uint8_t PIN_TFT_SCK = 16;  // SPI Clock
-constexpr int8_t PIN_TFT_RST = -1;   // Tied to ESP32 EN (shared reset)
+// Board pins: VCC, GND, CS, RESET, A0, SDA, SCK, LED
+constexpr uint8_t PIN_TFT_CS = 15;   // CS   — Chip Select
+constexpr uint8_t PIN_TFT_DC = 17;   // A0   — Data/Command
+constexpr uint8_t PIN_TFT_MOSI = 23; // SDA  — SPI Data
+constexpr uint8_t PIN_TFT_SCK = 16;  // SCK  — SPI Clock
+constexpr int8_t PIN_TFT_RST = -1;   // RESET — Tied to ESP32 EN
 
 // --- I2C (DS3231 RTC) ---
 // Using ESP32 default I2C: SDA=21, SCL=22

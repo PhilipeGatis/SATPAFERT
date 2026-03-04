@@ -148,21 +148,22 @@ graph LR
 | **D12** | Fertilizer CH2 | MOSFET channel 2 | Output | Digital |
 | **D13** | Fertilizer CH1 | MOSFET channel 1 | Output | Digital |
 | **D14** | Fertilizer CH3 | MOSFET channel 3 | Output | Digital |
-| **D15** | TFT Chip Select | ST7735 Display | Output | SPI (CS) |
-| **D16** | TFT Clock | ST7735 Display | Output | SPI (SCK) |
-| **D17** | TFT Data/Command | ST7735 Display | Output | SPI (DC) |
+| **D15** | TFT CS | ST7735 Display (CS) | Output | SPI (CS) |
+| **D16** | TFT SCK | ST7735 Display (SCK) | Output | SPI (SCK) |
+| **D17** | TFT A0 (Data/Command) | ST7735 Display (A0) | Output | SPI (DC) |
 | **D18** | Ultrasonic Trigger | JSN-SR04T | Output | Digital |
 | **D19** | Ultrasonic Echo | JSN-SR04T | Input | Digital (3.3V via divider) |
 | **D21** | SDA | DS3231 RTC | Bidirectional | I2C |
 | **D22** | SCL | DS3231 RTC | Bidirectional | I2C |
-| **D23** | TFT Data | ST7735 Display | Output | SPI (MOSI) |
+| **D23** | TFT SDA (Data) | ST7735 Display (SDA) | Output | SPI (MOSI) |
 | **D25** | Drain pump | MOSFET channel 6 | Output | Digital |
 | **D26** | Prime (dechlorinator) | MOSFET channel 5 | Output | Digital |
 | **D27** | Fertilizer CH4 | MOSFET channel 4 | Output | Digital |
 | **D32** | Solenoid valve | MOSFET channel 8 | Output | Digital |
 | **D33** | Refill pump | MOSFET channel 7 | Output | Digital |
 | **VIN** | 5V Power | LM2596 step-down | — | Power |
-| **EN** | Shared reset | ST7735 Display (RST) | — | Reset |
+| **EN** | Shared reset | ST7735 Display (RESET) | — | Reset |
+| **3.3V** | Backlight | ST7735 Display (LED) | — | Power |
 
 ---
 

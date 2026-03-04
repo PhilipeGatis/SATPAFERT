@@ -148,21 +148,22 @@ graph LR
 | **D12** | Fertilizante CH2 | MOSFET canal 2 | Saída | Digital |
 | **D13** | Fertilizante CH1 | MOSFET canal 1 | Saída | Digital |
 | **D14** | Fertilizante CH3 | MOSFET canal 3 | Saída | Digital |
-| **D15** | TFT Chip Select | Display ST7735 | Saída | SPI (CS) |
-| **D16** | TFT Clock | Display ST7735 | Saída | SPI (SCK) |
-| **D17** | TFT Data/Command | Display ST7735 | Saída | SPI (DC) |
+| **D15** | TFT CS | Display ST7735 (CS) | Saída | SPI (CS) |
+| **D16** | TFT SCK | Display ST7735 (SCK) | Saída | SPI (SCK) |
+| **D17** | TFT A0 (Data/Command) | Display ST7735 (A0) | Saída | SPI (DC) |
 | **D18** | Trigger ultrassônico | JSN-SR04T | Saída | Digital |
 | **D19** | Echo ultrassônico | JSN-SR04T | Entrada | Digital (3.3V via divisor) |
 | **D21** | SDA | RTC DS3231 | Bidirecional | I2C |
 | **D22** | SCL | RTC DS3231 | Bidirecional | I2C |
-| **D23** | TFT Data | Display ST7735 | Saída | SPI (MOSI) |
+| **D23** | TFT SDA (Data) | Display ST7735 (SDA) | Saída | SPI (MOSI) |
 | **D25** | Bomba de drenagem | MOSFET canal 6 | Saída | Digital |
 | **D26** | Prime (desclorador) | MOSFET canal 5 | Saída | Digital |
 | **D27** | Fertilizante CH4 | MOSFET canal 4 | Saída | Digital |
 | **D32** | Válvula solenóide | MOSFET canal 8 | Saída | Digital |
 | **D33** | Bomba de recalque | MOSFET canal 7 | Saída | Digital |
 | **VIN** | Alimentação 5V | LM2596 step-down | — | Energia |
-| **EN** | Reset compartilhado | Display ST7735 (RST) | — | Reset |
+| **EN** | Reset compartilhado | Display ST7735 (RESET) | — | Reset |
+| **3.3V** | Backlight | Display ST7735 (LED) | — | Energia |
 
 ---
 
