@@ -138,6 +138,32 @@ graph LR
 >
 > Para a lista completa de componentes e quantidades, consulte [`BOM.md`](BOM.md).
 
+### Diagrama de Conexões ESP32
+
+| GPIO | Função | Componente | Direção | Protocolo |
+|------|--------|------------|---------|-----------|
+| **D2** | Canister ON/OFF | Relé SSR Omron | Saída | Digital |
+| **D4** | Sensor de nível máx. | XKC-Y25-NPN (capacitivo) | Entrada (PULLUP) | Digital |
+| **D5** | Boia do reservatório | Float Switch horizontal | Entrada (PULLUP) | Digital |
+| **D12** | Fertilizante CH2 | MOSFET canal 2 | Saída | Digital |
+| **D13** | Fertilizante CH1 | MOSFET canal 1 | Saída | Digital |
+| **D14** | Fertilizante CH3 | MOSFET canal 3 | Saída | Digital |
+| **D15** | TFT Chip Select | Display ST7735 | Saída | SPI (CS) |
+| **D16** | TFT Clock | Display ST7735 | Saída | SPI (SCK) |
+| **D17** | TFT Data/Command | Display ST7735 | Saída | SPI (DC) |
+| **D18** | Trigger ultrassônico | JSN-SR04T | Saída | Digital |
+| **D19** | Echo ultrassônico | JSN-SR04T | Entrada | Digital (3.3V via divisor) |
+| **D21** | SDA | RTC DS3231 | Bidirecional | I2C |
+| **D22** | SCL | RTC DS3231 | Bidirecional | I2C |
+| **D23** | TFT Data | Display ST7735 | Saída | SPI (MOSI) |
+| **D25** | Bomba de drenagem | MOSFET canal 6 | Saída | Digital |
+| **D26** | Prime (desclorador) | MOSFET canal 5 | Saída | Digital |
+| **D27** | Fertilizante CH4 | MOSFET canal 4 | Saída | Digital |
+| **D32** | Válvula solenóide | MOSFET canal 8 | Saída | Digital |
+| **D33** | Bomba de recalque | MOSFET canal 7 | Saída | Digital |
+| **VIN** | Alimentação 5V | LM2596 step-down | — | Energia |
+| **EN** | Reset compartilhado | Display ST7735 (RST) | — | Reset |
+
 ---
 
 ## 🛡️ Segurança e Confiabilidade
@@ -270,51 +296,6 @@ Todos os parâmetros são persistidos em **NVS (Non-Volatile Storage)** e sobrev
 
 ---
 
-## �🖥️ Simulação no Wokwi
-
-O projeto inclui suporte completo para simulação no [Wokwi](https://wokwi.com), permitindo testar o firmware **sem hardware físico**.
-
-### Pré-requisitos
-
-1. [VS Code](https://code.visualstudio.com/) com a extensão **Wokwi Simulator** instalada.
-2. [PlatformIO](https://platformio.org/) instalado no VS Code.
-
-### Passo a passo
-
-1. **Compile o firmware para o environment Wokwi:**
-
-   ```bash
-   pio run -e wokwi
-   ```
-
-2. **Inicie a simulação:**
-   - Abra o VS Code no diretório do projeto.
-   - Pressione `F1` → **Wokwi: Start Simulator**.
-   - O simulador carregará o `diagram.json` e o firmware compilado (`.pio/build/wokwi/firmware.bin`).
-
-3. **Interaja com a simulação:**
-   - **Botão TPA** (GPIO 15) — pressione para iniciar o ciclo de troca parcial de água.
-   - **Botão Fertilização** (GPIO 23) — pressione para disparar a dosagem de fertilizantes.
-   - O monitor serial exibirá os logs do sistema em tempo real.
-   - A rede WiFi virtual está habilitada (`[net] enable = true` no `wokwi.toml`), permitindo acessar o dashboard web.
-
-### Diferenças do environment Wokwi
-
-O environment `wokwi` define a flag `-D WOKWI_TEST` que ajusta automáticamente:
-
-- **Temporização rápida** — os ciclos de TPA usam segundos em vez de minutos.
-- **Volumes menores** — parâmetros reduzidos para testes rápidos.
-
-### Arquivos relevantes
-
-| Arquivo | Função |
-|---|---|
-| `diagram.json` | Define o circuito virtual (ESP32, botões, LEDs, sensores) |
-| `wokwi.toml` | Configuração do simulador (firmware path, rede virtual) |
-| `platformio.ini` (`[env:wokwi]`) | Environment de build com flags de simulação |
-
----
-
 ## 🧪 Testes
 
 ### Rodar testes unitários (sem hardware)
@@ -420,9 +401,7 @@ cd frontend && npm install && npm run build
 ├── BOM.md                    # Lista de materiais (Bill of Materials)
 ├── HARDWARE.md               # Arquitetura de hardware e diagramas de ligação
 ├── Makefile                  # Automação: build frontend + upload
-├── diagram.json              # Circuito virtual Wokwi
-├── wokwi.toml                # Configuração do simulador Wokwi
-├── platformio.ini            # Environments: esp32dev, wokwi, native, coverage
+├── platformio.ini            # Environments: esp32dev, native, coverage
 ├── include/
 │   ├── Config.h              # Pins, timeouts, constantes
 │   ├── SafetyWatchdog.h

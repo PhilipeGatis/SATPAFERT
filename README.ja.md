@@ -138,6 +138,32 @@ graph LR
 >
 > 全コンポーネントリストと数量は [`BOM.ja.md`](BOM.ja.md) を参照してください。
 
+### ESP32 GPIO接続図
+
+| GPIO | 機能 | コンポーネント | 方向 | プロトコル |
+|------|------|----------------|------|------------|
+| **D2** | キャニスターON/OFF | Omron SSRリレー | 出力 | デジタル |
+| **D4** | 最大レベルセンサー | XKC-Y25-NPN（静電容量） | 入力 (PULLUP) | デジタル |
+| **D5** | リザーバーフロート | 水平フロートスイッチ | 入力 (PULLUP) | デジタル |
+| **D12** | 肥料CH2 | MOSFETチャンネル2 | 出力 | デジタル |
+| **D13** | 肥料CH1 | MOSFETチャンネル1 | 出力 | デジタル |
+| **D14** | 肥料CH3 | MOSFETチャンネル3 | 出力 | デジタル |
+| **D15** | TFTチップセレクト | ST7735ディスプレイ | 出力 | SPI (CS) |
+| **D16** | TFTクロック | ST7735ディスプレイ | 出力 | SPI (SCK) |
+| **D17** | TFTデータ/コマンド | ST7735ディスプレイ | 出力 | SPI (DC) |
+| **D18** | 超音波トリガー | JSN-SR04T | 出力 | デジタル |
+| **D19** | 超音波エコー | JSN-SR04T | 入力 | デジタル (3.3V分圧) |
+| **D21** | SDA | DS3231 RTC | 双方向 | I2C |
+| **D22** | SCL | DS3231 RTC | 双方向 | I2C |
+| **D23** | TFTデータ | ST7735ディスプレイ | 出力 | SPI (MOSI) |
+| **D25** | 排水ポンプ | MOSFETチャンネル6 | 出力 | デジタル |
+| **D26** | プライム（カルキ抜き） | MOSFETチャンネル5 | 出力 | デジタル |
+| **D27** | 肥料CH4 | MOSFETチャンネル4 | 出力 | デジタル |
+| **D32** | ソレノイドバルブ | MOSFETチャンネル8 | 出力 | デジタル |
+| **D33** | 給水ポンプ | MOSFETチャンネル7 | 出力 | デジタル |
+| **VIN** | 5V電源 | LM2596ステップダウン | — | 電源 |
+| **EN** | 共有リセット | ST7735ディスプレイ (RST) | — | リセット |
+
 ---
 
 ## 🛡️ 安全性と信頼性
@@ -270,49 +296,6 @@ curl -X POST http://<ESP32_IP>/api/schedule \
 
 ---
 
-## 🖥️ Wokwiシミュレーション
-
-プロジェクトは[Wokwi](https://wokwi.com)シミュレーションを完全サポートしており、**物理ハードウェアなし**でファームウェアをテストできます。
-
-### 前提条件
-
-1. **Wokwi Simulator**拡張機能がインストールされた[VS Code](https://code.visualstudio.com/)。
-2. VS Codeにインストールされた[PlatformIO](https://platformio.org/)。
-
-### 手順
-
-1. **Wokwi環境用ファームウェアをビルド：**
-
-   ```bash
-   pio run -e wokwi
-   ```
-
-2. **シミュレーションを開始：**
-   - プロジェクトディレクトリでVS Codeを開きます。
-   - `F1` → **Wokwi: Start Simulator** を押します。
-   - シミュレーターが`diagram.json`とコンパイル済みファームウェアを読み込みます。
-
-3. **シミュレーションとの対話：**
-   - **換水ボタン**（GPIO 15） — 押して換水サイクルを開始。
-   - **施肥ボタン**（GPIO 23） — 押して肥料投与を実行。
-   - シリアルモニターにリアルタイムでシステムログが表示されます。
-   - 仮想WiFiが有効（`wokwi.toml`で`[net] enable = true`）で、Webダッシュボードにアクセス可能。
-
-### Wokwi環境の違い
-
-`wokwi`環境は`-D WOKWI_TEST`フラグを設定し、自動的に以下を調整します：
-
-- **高速タイミング** — 換水サイクルが分ではなく秒で動作。
-- **小容量** — クイックテスト用にパラメータを縮小。
-
-### 関連ファイル
-
-| ファイル | 用途 |
-|---|---|
-| `diagram.json` | 仮想回路の定義（ESP32、ボタン、LED、センサー） |
-| `wokwi.toml` | シミュレーター設定（ファームウェアパス、仮想ネットワーク） |
-| `platformio.ini`（`[env:wokwi]`） | シミュレーションフラグ付きビルド環境 |
-
 ---
 
 ## 🧪 テスト
@@ -431,9 +414,7 @@ cd frontend && npm install && npm run build
 ├── README.pt-BR.md           # ドキュメント（pt-BR）
 ├── README.ja.md              # ドキュメント（ja-JP）
 ├── Makefile                  # 自動化：フロントエンドビルド + アップロード
-├── diagram.json              # Wokwi仮想回路
-├── wokwi.toml                # Wokwiシミュレーター設定
-├── platformio.ini            # 環境：esp32dev、wokwi、native、coverage
+├── platformio.ini            # 環境：esp32dev、native、coverage
 ├── include/
 │   ├── Config.h              # ピン、タイムアウト、定数
 │   ├── SafetyWatchdog.h

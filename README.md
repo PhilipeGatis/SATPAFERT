@@ -138,6 +138,32 @@ graph LR
 >
 > For the complete component list and quantities, see [`BOM.md`](BOM.md).
 
+### ESP32 GPIO Connection Diagram
+
+| GPIO | Function | Component | Direction | Protocol |
+|------|----------|-----------|-----------|----------|
+| **D2** | Canister ON/OFF | Omron SSR Relay | Output | Digital |
+| **D4** | Max level sensor | XKC-Y25-NPN (capacitive) | Input (PULLUP) | Digital |
+| **D5** | Reservoir float | Horizontal Float Switch | Input (PULLUP) | Digital |
+| **D12** | Fertilizer CH2 | MOSFET channel 2 | Output | Digital |
+| **D13** | Fertilizer CH1 | MOSFET channel 1 | Output | Digital |
+| **D14** | Fertilizer CH3 | MOSFET channel 3 | Output | Digital |
+| **D15** | TFT Chip Select | ST7735 Display | Output | SPI (CS) |
+| **D16** | TFT Clock | ST7735 Display | Output | SPI (SCK) |
+| **D17** | TFT Data/Command | ST7735 Display | Output | SPI (DC) |
+| **D18** | Ultrasonic Trigger | JSN-SR04T | Output | Digital |
+| **D19** | Ultrasonic Echo | JSN-SR04T | Input | Digital (3.3V via divider) |
+| **D21** | SDA | DS3231 RTC | Bidirectional | I2C |
+| **D22** | SCL | DS3231 RTC | Bidirectional | I2C |
+| **D23** | TFT Data | ST7735 Display | Output | SPI (MOSI) |
+| **D25** | Drain pump | MOSFET channel 6 | Output | Digital |
+| **D26** | Prime (dechlorinator) | MOSFET channel 5 | Output | Digital |
+| **D27** | Fertilizer CH4 | MOSFET channel 4 | Output | Digital |
+| **D32** | Solenoid valve | MOSFET channel 8 | Output | Digital |
+| **D33** | Refill pump | MOSFET channel 7 | Output | Digital |
+| **VIN** | 5V Power | LM2596 step-down | — | Power |
+| **EN** | Shared reset | ST7735 Display (RST) | — | Reset |
+
 ---
 
 ## 🛡️ Safety & Reliability
@@ -270,49 +296,6 @@ All parameters are persisted in **NVS (Non-Volatile Storage)** and survive reboo
 
 ---
 
-## 🖥️ Wokwi Simulation
-
-The project includes full support for [Wokwi](https://wokwi.com) simulation, allowing you to test the firmware **without physical hardware**.
-
-### Prerequisites
-
-1. [VS Code](https://code.visualstudio.com/) with the **Wokwi Simulator** extension installed.
-2. [PlatformIO](https://platformio.org/) installed in VS Code.
-
-### Step by Step
-
-1. **Build the firmware for the Wokwi environment:**
-
-   ```bash
-   pio run -e wokwi
-   ```
-
-2. **Start the simulation:**
-   - Open VS Code in the project directory.
-   - Press `F1` → **Wokwi: Start Simulator**.
-   - The simulator will load `diagram.json` and the compiled firmware (`.pio/build/wokwi/firmware.bin`).
-
-3. **Interact with the simulation:**
-   - **Water Change Button** (GPIO 15) — press to start the water change cycle.
-   - **Fertilization Button** (GPIO 23) — press to trigger fertilizer dosing.
-   - The serial monitor will display system logs in real time.
-   - Virtual WiFi is enabled (`[net] enable = true` in `wokwi.toml`), allowing access to the web dashboard.
-
-### Wokwi Environment Differences
-
-The `wokwi` environment sets the `-D WOKWI_TEST` flag, which automatically adjusts:
-
-- **Fast timing** — water change cycles use seconds instead of minutes.
-- **Smaller volumes** — reduced parameters for quick testing.
-
-### Relevant Files
-
-| File | Purpose |
-|---|---|
-| `diagram.json` | Defines the virtual circuit (ESP32, buttons, LEDs, sensors) |
-| `wokwi.toml` | Simulator configuration (firmware path, virtual network) |
-| `platformio.ini` (`[env:wokwi]`) | Build environment with simulation flags |
-
 ---
 
 ## 🧪 Testing
@@ -431,9 +414,7 @@ cd frontend && npm install && npm run build
 ├── README.pt-BR.md           # Documentation (pt-BR)
 ├── README.ja.md              # Documentation (ja-JP)
 ├── Makefile                  # Automation: build frontend + upload
-├── diagram.json              # Wokwi virtual circuit
-├── wokwi.toml                # Wokwi simulator config
-├── platformio.ini            # Environments: esp32dev, wokwi, native, coverage
+├── platformio.ini            # Environments: esp32dev, native, coverage
 ├── include/
 │   ├── Config.h              # Pins, timeouts, constants
 │   ├── SafetyWatchdog.h

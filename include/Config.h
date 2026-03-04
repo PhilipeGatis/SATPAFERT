@@ -29,21 +29,12 @@ constexpr uint8_t PIN_OPTICAL =
     4; // Capacitive max-level sensor XKC-Y25-NPN (INPUT_PULLUP, active LOW)
 constexpr uint8_t PIN_FLOAT =
     5; // Horizontal float switch reservoir (INPUT_PULLUP, active LOW)
-#ifdef WOKWI_TEST
-constexpr uint8_t PIN_TPA_BUTTON =
-    15; // Manual TPA start button (Wokwi-only, INPUT_PULLUP, active LOW)
-constexpr uint8_t PIN_FERT_BUTTON =
-    23; // Manual fertilization button (Wokwi-only, INPUT_PULLUP, active LOW)
-#endif
-
-// --- TFT Display (ST7735, SPI) --- real hardware only
-#ifndef USE_SSD1306
+// --- TFT Display (ST7735, SPI) ---
 constexpr uint8_t PIN_TFT_CS = 15;   // Chip Select
 constexpr uint8_t PIN_TFT_DC = 17;   // Data/Command
 constexpr uint8_t PIN_TFT_MOSI = 23; // SPI Data
 constexpr uint8_t PIN_TFT_SCK = 16;  // SPI Clock
 constexpr int8_t PIN_TFT_RST = -1;   // Tied to ESP32 EN (shared reset)
-#endif
 
 // --- I2C (DS3231 RTC) ---
 // Using ESP32 default I2C: SDA=21, SCL=22
@@ -65,28 +56,6 @@ constexpr uint8_t NUM_FERTS = 4;
 // TIMING & SAFETY CONSTANTS
 // ============================================================================
 
-#ifdef WOKWI_TEST
-// ── Wokwi fast-simulation overrides (seconds instead of minutes) ─────────────
-
-// Pump timeouts
-constexpr unsigned long TIMEOUT_DRAIN_MS = 15UL * 1000;        // 15s
-constexpr unsigned long TIMEOUT_FILL_MS = 15UL * 1000;         // 15s
-constexpr unsigned long TIMEOUT_REFILL_MS = 15UL * 1000;       // 15s
-constexpr unsigned long TIMEOUT_PRIME_MS = 5UL * 1000;         // 5s
-constexpr unsigned long TIMEOUT_FERT_MS = 5UL * 1000;          // 5s
-constexpr unsigned long TIMEOUT_EMERGENCY_MS = 10UL * 1000;    // 10s
-constexpr unsigned long MAINTENANCE_DURATION_MS = 60UL * 1000; // 1 min
-
-// Volumes and flow
-constexpr float DEFAULT_DOSE_ML = 1.0f;       // 1 mL (fast)
-constexpr float DEFAULT_PRIME_ML = 1.0f;      // 1 mL
-constexpr float DEFAULT_STOCK_ML = 50.0f;     // 50 mL
-constexpr float FLOW_RATE_ML_PER_SEC = 10.0f; // 10 mL/s (fast pump)
-constexpr float DEFAULT_DRAIN_PCT = 20.0f;    // 20% drain
-
-#else
-// ── Production values ────────────────────────────────────────────────────────
-
 // Pump timeouts
 constexpr unsigned long TIMEOUT_DRAIN_MS = 5UL * 60 * 1000;         // 5 min
 constexpr unsigned long TIMEOUT_FILL_MS = 10UL * 60 * 1000;         // 10 min
@@ -102,8 +71,6 @@ constexpr float DEFAULT_PRIME_ML = 10.0f;    // Default Prime dose
 constexpr float DEFAULT_STOCK_ML = 500.0f;   // Default bottle size
 constexpr float FLOW_RATE_ML_PER_SEC = 1.5f; // Peristaltic pump flow rate
 constexpr float DEFAULT_DRAIN_PCT = 30.0f;   // Drain 30% of tank
-
-#endif // WOKWI_TEST
 
 // -- NTP sync interval --
 constexpr unsigned long NTP_SYNC_INTERVAL_MS = 24UL * 3600 * 1000; // 24 h

@@ -2,17 +2,9 @@
 
 #include "Config.h"
 #include <Adafruit_GFX.h>
-#include <Arduino.h>
-
-#ifdef USE_SSD1306
-// ── Wokwi: keep SSD1306 OLED (I2C) ──
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
-#else
-// ── Real hardware: ST7735 TFT (SPI) ──
 #include <Adafruit_ST7735.h>
+#include <Arduino.h>
 #include <SPI.h>
-#endif
 
 // Forward declarations
 class TimeManager;
@@ -21,8 +13,7 @@ class FertManager;
 class SafetyWatchdog;
 class WebManager;
 
-/// @brief Manages the display with auto-cycling pages.
-/// Compiles for either SSD1306 (Wokwi) or ST7735 (real hardware).
+/// @brief Manages the ST7735 TFT display with auto-cycling pages.
 class DisplayManager {
 public:
   DisplayManager();
@@ -41,14 +32,8 @@ public:
   void update();
 
 private:
-#ifdef USE_SSD1306
-  Adafruit_SSD1306 _display;
-  static constexpr uint8_t SCREEN_WIDTH = 128;
-  static constexpr uint8_t SCREEN_HEIGHT = 32;
-  static constexpr int8_t OLED_RESET = -1;
-  static constexpr uint8_t OLED_ADDR = 0x3C;
-#else
   Adafruit_ST7735 _display;
+
   static constexpr uint8_t SCREEN_WIDTH = 128;
   static constexpr uint8_t SCREEN_HEIGHT = 160;
 
@@ -61,7 +46,6 @@ private:
   static constexpr uint16_t COL_WARN = 0xFFE0;   // Yellow
   static constexpr uint16_t COL_ERR = 0xF800;    // Red
   static constexpr uint16_t COL_BAR_BG = 0x4208; // Dark gray
-#endif
 
   // Manager pointers
   TimeManager *_time;
