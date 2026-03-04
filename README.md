@@ -25,7 +25,7 @@
 - **Filtration** — canister on/off control through an SSR relay (AC power).
 - **Safety** — continuous sensor monitoring, watchdog timer, and emergency shutdown mode.
 
-The firmware runs on an **ESP32 DevKit V1** and features an **embedded web dashboard** (React + Vite served via LittleFS), **OLED display**, **DS3231 RTC clock**, and a **serial command interface**.
+The firmware runs on an **ESP32 DevKit V1** and features an **embedded web dashboard** (React + Vite served via LittleFS), **color TFT display (ST7735)**, **DS3231 RTC clock**, and a **serial command interface**.
 
 ---
 
@@ -49,7 +49,7 @@ main.cpp               ← Main orchestrator
 ├── TimeManager         ← DS3231 RTC + NTP sync
 ├── FertManager         ← Dosing + NVS dedup + stock tracking
 ├── WaterManager        ← Water change state machine (6 states)
-├── DisplayManager      ← OLED SSD1306 128×64
+├── DisplayManager      ← TFT ST7735 128×160 (SPI)
 └── WebManager          ← Embedded web dashboard + serial interface
 ```
 
@@ -119,7 +119,8 @@ graph LR
   end
 
   subgraph Signals [🎮 ESP32 Signals]
-    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC + OLED]
+    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC DS3231]
+    ESP32 -->|SPI D15,16,17,23| TFT[TFT Display ST7735]
     ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
     ESP32 -->|D2| SSR[Omron SSR]
     ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrasonic JSN]

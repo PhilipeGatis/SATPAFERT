@@ -25,7 +25,7 @@ O **IARA** é um sistema embarcado completo para automação de aquários planta
 - **Filtração** — controle liga/desliga do canister via relé SSR (corrente AC).
 - **Segurança** — monitoramento contínuo de sensores, watchdog e modo emergência.
 
-O firmware roda em um **ESP32 DevKit V1** e conta com **dashboard web embarcado** (React + Vite servido via LittleFS), **display OLED**, **relógio RTC DS3231** e interface via **comandos serial**.
+O firmware roda em um **ESP32 DevKit V1** e conta com **dashboard web embarcado** (React + Vite servido via LittleFS), **display TFT colorido (ST7735)**, **relógio RTC DS3231** e interface via **comandos serial**.
 
 ---
 
@@ -49,7 +49,7 @@ main.cpp               ← Orquestrador principal
 ├── TimeManager         ← RTC DS3231 + NTP sync
 ├── FertManager         ← Dosagem + dedup NVS + estoque
 ├── WaterManager        ← State machine TPA (6 estados)
-├── DisplayManager      ← OLED SSD1306 128×64
+├── DisplayManager      ← TFT ST7735 128×160 (SPI)
 └── WebManager          ← Dashboard web embarcado + interface Serial
 ```
 
@@ -119,7 +119,8 @@ graph LR
   end
 
   subgraph Sinais [🎮 ESP32 Sinais]
-    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC + OLED]
+    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC DS3231]
+    ESP32 -->|SPI D15,16,17,23| TFT[Display TFT ST7735]
     ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
     ESP32 -->|D2| SSR[Omron SSR]
     ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrassônico JSN]

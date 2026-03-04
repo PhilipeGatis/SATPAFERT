@@ -29,10 +29,21 @@ constexpr uint8_t PIN_OPTICAL =
     4; // Capacitive max-level sensor XKC-Y25-NPN (INPUT_PULLUP, active LOW)
 constexpr uint8_t PIN_FLOAT =
     5; // Horizontal float switch reservoir (INPUT_PULLUP, active LOW)
+#ifdef WOKWI_TEST
 constexpr uint8_t PIN_TPA_BUTTON =
-    15; // Manual TPA start button (INPUT_PULLUP, active LOW)
+    15; // Manual TPA start button (Wokwi-only, INPUT_PULLUP, active LOW)
 constexpr uint8_t PIN_FERT_BUTTON =
-    23; // Manual fertilization button (INPUT_PULLUP, active LOW)
+    23; // Manual fertilization button (Wokwi-only, INPUT_PULLUP, active LOW)
+#endif
+
+// --- TFT Display (ST7735, SPI) --- real hardware only
+#ifndef USE_SSD1306
+constexpr uint8_t PIN_TFT_CS = 15;   // Chip Select
+constexpr uint8_t PIN_TFT_DC = 17;   // Data/Command
+constexpr uint8_t PIN_TFT_MOSI = 23; // SPI Data
+constexpr uint8_t PIN_TFT_SCK = 16;  // SPI Clock
+constexpr int8_t PIN_TFT_RST = -1;   // Tied to ESP32 EN (shared reset)
+#endif
 
 // --- I2C (DS3231 RTC) ---
 // Using ESP32 default I2C: SDA=21, SCL=22

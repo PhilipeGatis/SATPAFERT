@@ -25,7 +25,7 @@
 - **ろ過** — SSRリレー（AC電源）によるキャニスターのON/OFF制御。
 - **安全** — 連続センサー監視、ウォッチドッグタイマー、緊急シャットダウンモード。
 
-ファームウェアは**ESP32 DevKit V1**上で動作し、**組み込みWebダッシュボード**（React + Vite、LittleFSで配信）、**OLEDディスプレイ**、**DS3231 RTCクロック**、**シリアルコマンドインターフェース**を搭載しています。
+ファームウェアは**ESP32 DevKit V1**上で動作し、**組み込みWebダッシュボード**（React + Vite、LittleFSで配信）、**カラーTFTディスプレイ（ST7735）**、**DS3231 RTCクロック**、**シリアルコマンドインターフェース**を搭載しています。
 
 ---
 
@@ -49,7 +49,7 @@ main.cpp               ← メインオーケストレーター
 ├── TimeManager         ← DS3231 RTC + NTP同期
 ├── FertManager         ← 投与 + NVS重複排除 + 在庫追跡
 ├── WaterManager        ← 換水ステートマシン（6ステート）
-├── DisplayManager      ← OLED SSD1306 128×64
+├── DisplayManager      ← TFT ST7735 128×160 (SPI)
 └── WebManager          ← 組み込みWebダッシュボード + シリアルI/F
 ```
 
@@ -119,7 +119,8 @@ graph LR
   end
 
   subgraph Signals [🎮 ESP32信号]
-    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC + OLED]
+    ESP32 -->|D21 SDA, D22 SCL| I2C[RTC DS3231]
+    ESP32 -->|SPI D15,16,17,23| TFT[TFTディスプレイ ST7735]
     ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
     ESP32 -->|D2| SSR[Omron SSR]
     ESP32 ---|D18 Trig, D19 Echo| Ultra[超音波JSN]

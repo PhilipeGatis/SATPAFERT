@@ -48,8 +48,10 @@ unsigned long lastWiFiRetryTime = 0;
 const unsigned long WIFI_RETRY_INTERVAL_MS = 30000; // 30 seconds
 
 // ---- TPA Button State ----
+#ifdef WOKWI_TEST
 bool lastButtonState = HIGH; // INPUT_PULLUP: idle = HIGH
 bool lastFertBtnState = HIGH;
+#endif
 
 // =============================================================================
 // SETUP
@@ -61,9 +63,11 @@ void setup() {
     digitalWrite(OUTPUT_PINS[i], LOW);
   }
 
-  // TPA button
+  // TPA / Fert buttons (Wokwi-only)
+#ifdef WOKWI_TEST
   pinMode(PIN_TPA_BUTTON, INPUT_PULLUP);
   pinMode(PIN_FERT_BUTTON, INPUT_PULLUP);
+#endif
 
   // --- Step 2: Serial ---
   Serial.begin(115200);
@@ -345,7 +349,9 @@ void loop() {
   // ---- 5. SCHEDULING (only if not in maintenance and not running TPA) ----
   if (!safety.isMaintenanceMode()) {
 
-    // ---- Manual TPA button (GPIO 15, active LOW with debounce) ----
+    // ---- Manual TPA button (Wokwi-only, GPIO 15, active LOW with debounce)
+    // ----
+#ifdef WOKWI_TEST
     bool btnState = digitalRead(PIN_TPA_BUTTON);
     if (btnState == LOW && lastButtonState == HIGH && !waterMgr.isRunning()) {
       Serial.println("[BTN] TPA button pressed — starting TPA...");
@@ -357,7 +363,8 @@ void loop() {
     }
     lastButtonState = btnState;
 
-    // ---- Manual FERT button (GPIO 23, active LOW with debounce) ----
+    // ---- Manual FERT button (Wokwi-only, GPIO 23, active LOW with debounce)
+    // ----
     bool fertBtnState = digitalRead(PIN_FERT_BUTTON);
     if (fertBtnState == LOW && lastFertBtnState == HIGH) {
       Serial.println("[BTN] Fert button pressed — dosing all channels...");
@@ -374,6 +381,7 @@ void loop() {
       Serial.println("[BTN] Fertilization complete.");
     }
     lastFertBtnState = fertBtnState;
+#endif
 
     DateTime now = timeMgr.now();
     uint8_t currentMinute = now.minute();
