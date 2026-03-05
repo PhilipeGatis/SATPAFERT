@@ -88,8 +88,8 @@ private:
 
   /// Send notification via Pushsafer HTTPS API
   /// @return true if sent successfully
-  bool _send(const char *title, const char *message, const char *icon,
-             const char *sound);
+  bool _send(NotifyType type, const char *title, const char *message,
+             const char *icon, const char *sound);
 
   void _loadConfig();
   void _saveConfig();

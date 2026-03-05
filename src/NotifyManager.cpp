@@ -74,7 +74,7 @@ void NotifyManager::notifyTPAComplete() {
   if (!_canSend(NOTIFY_TPA_COMPLETE))
     return;
   const auto &s = NOTIFY_STRINGS[_lang];
-  _send(s.tpaCompleteTitle, s.tpaCompleteMsg, "42", "10");
+  _send(NOTIFY_TPA_COMPLETE, s.tpaCompleteTitle, s.tpaCompleteMsg, "42", "10");
 }
 
 void NotifyManager::notifyTPAError(const char *reason) {
@@ -83,7 +83,7 @@ void NotifyManager::notifyTPAError(const char *reason) {
   const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
   snprintf(msg, sizeof(msg), s.tpaErrorFmt, reason);
-  _send(s.tpaErrorTitle, msg, "2", "8");
+  _send(NOTIFY_TPA_ERROR, s.tpaErrorTitle, msg, "2", "8");
 }
 
 void NotifyManager::notifyFertLowStock(uint8_t channel, float remainingML,
@@ -94,7 +94,7 @@ void NotifyManager::notifyFertLowStock(uint8_t channel, float remainingML,
   char msg[128];
   snprintf(msg, sizeof(msg), s.fertLowStockFmt, channel + 1, remainingML,
            thresholdML);
-  _send(s.fertLowStockTitle, msg, "33", "5");
+  _send(NOTIFY_FERT_LOW_STOCK, s.fertLowStockTitle, msg, "33", "5");
 }
 
 void NotifyManager::notifyEmergency(const char *reason) {
@@ -103,7 +103,7 @@ void NotifyManager::notifyEmergency(const char *reason) {
   const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
   snprintf(msg, sizeof(msg), s.emergencyFmt, reason);
-  _send(s.emergencyTitle, msg, "4", "11");
+  _send(NOTIFY_EMERGENCY, s.emergencyTitle, msg, "4", "11");
 }
 
 void NotifyManager::notifyFertComplete(uint8_t channel, float doseML) {
@@ -112,7 +112,7 @@ void NotifyManager::notifyFertComplete(uint8_t channel, float doseML) {
   const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
   snprintf(msg, sizeof(msg), s.fertCompleteFmt, channel + 1, doseML);
-  _send(s.fertCompleteTitle, msg, "31", "0");
+  _send(NOTIFY_FERT_COMPLETE, s.fertCompleteTitle, msg, "31", "0");
 }
 
 void NotifyManager::notifyDailyLevel(float levelCm) {
@@ -121,7 +121,7 @@ void NotifyManager::notifyDailyLevel(float levelCm) {
   const auto &s = NOTIFY_STRINGS[_lang];
   char msg[128];
   snprintf(msg, sizeof(msg), s.dailyLevelFmt, levelCm);
-  _send(s.dailyLevelTitle, msg, "15", "0");
+  _send(NOTIFY_DAILY_LEVEL, s.dailyLevelTitle, msg, "15", "0");
 }
 
 void NotifyManager::sendTest() {
@@ -130,7 +130,7 @@ void NotifyManager::sendTest() {
     return;
   }
   const auto &s = NOTIFY_STRINGS[_lang];
-  bool ok = _send(s.testTitle, s.testMsg, "1", "10");
+  bool ok = _send(NOTIFY_TYPE_COUNT, s.testTitle, s.testMsg, "1", "10");
   Serial.printf("[Notify] Test notification %s.\n", ok ? "SENT" : "FAILED");
 }
 
@@ -172,14 +172,16 @@ bool NotifyManager::_canSend(NotifyType type) {
 // HTTPS SEND
 // ============================================================================
 
-bool NotifyManager::_send(const char *title, const char *message,
-                          const char *icon, const char *sound) {
+bool NotifyManager::_send(NotifyType type, const char *title,
+                          const char *message, const char *icon,
+                          const char *sound) {
 #ifdef UNIT_TEST
   // In test mode, just record the attempt
   _lastSendResult = true;
   _dailyCount++;
-  // Find the type from the caller context — we use a simple approach:
-  // set the cooldown for the first available type
+  if (type < NOTIFY_TYPE_COUNT) {
+    _lastNotifyMs[type] = millis();
+  }
   return true;
 #endif
 
@@ -231,8 +233,10 @@ bool NotifyManager::_send(const char *title, const char *message,
 
   if (success) {
     _dailyCount++;
-    // Set cooldown for the notification type
-    // (we track by finding the type from the calling function context)
+    // Set cooldown so this type won't fire again for NOTIFY_COOLDOWN_MS
+    if (type < NOTIFY_TYPE_COUNT) {
+      _lastNotifyMs[type] = millis();
+    }
     Serial.printf("[Notify] Sent: \"%s\" (%d/%d today)\n", title, _dailyCount,
                   MAX_DAILY_NOTIFICATIONS);
   }
