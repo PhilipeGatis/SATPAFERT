@@ -120,16 +120,25 @@ void DisplayManager::update() {
   // Lock on aquarium page while TPA is running
   bool tpaRunning = _water->isRunning();
   if (tpaRunning) {
-    if (now - _lastPageSwitch < PAGE_CYCLE_MS) {
-      return;
-    }
-    _lastPageSwitch = now;
     _currentPage = 1; // Aquarium page
 
-    _display.fillScreen(COL_BG);
-    uint8_t lang = _web->getLanguage();
-    _drawHeader(STR_AQUARIUM[lang]);
-    _drawAquariumPage();
+    // Full draw on first entry or every PAGE_CYCLE_MS (for header bar update)
+    if (now - _lastPageSwitch >= PAGE_CYCLE_MS) {
+      _lastPageSwitch = now;
+      _lastRedraw = now;
+
+      _display.fillScreen(COL_BG);
+      uint8_t lang = _web->getLanguage();
+      _drawHeader(STR_AQUARIUM[lang]);
+      _drawAquariumPage();
+      return;
+    }
+
+    // Partial redraw every 1s — only dynamic values (level, state, canister)
+    if (now - _lastRedraw >= REDRAW_MS) {
+      _lastRedraw = now;
+      _drawAquariumPageLive();
+    }
     return;
   }
 
@@ -164,21 +173,25 @@ void DisplayManager::update() {
     return;
   }
 
-  // Partial redraw every 1s (only for schedule page — clock seconds)
-  if (_currentPage == 3 && (now - _lastRedraw >= REDRAW_MS)) {
+  // Partial redraw every 1s for live data pages
+  if (now - _lastRedraw >= REDRAW_MS) {
     _lastRedraw = now;
 
-    // Use setTextColor(fg, bg) — draws background behind each char pixel
-    // No fillRect needed = zero flicker
-    DateTime dt = _time->now();
-    _display.setTextSize(3);
-    _display.setTextColor(COL_TEXT, COL_BG); // fg + bg = no flicker
-    char timeBuf[9];
-    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", dt.hour(), dt.minute(),
-             dt.second());
-    uint8_t tw = 8 * 18;
-    _display.setCursor((160 - tw) / 2, 32);
-    _display.print(timeBuf);
+    if (_currentPage == 3) {
+      // Schedule page — clock seconds
+      DateTime dt = _time->now();
+      _display.setTextSize(3);
+      _display.setTextColor(COL_TEXT, COL_BG);
+      char timeBuf[9];
+      snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", dt.hour(),
+               dt.minute(), dt.second());
+      uint8_t tw = 8 * 18;
+      _display.setCursor((160 - tw) / 2, 32);
+      _display.print(timeBuf);
+    } else if (_currentPage == 1) {
+      // Aquarium page — level, TPA state, canister
+      _drawAquariumPageLive();
+    }
   }
 }
 
@@ -355,6 +368,59 @@ void DisplayManager::_drawAquariumPage() {
   bool canOn = _water->isCanisterOn();
   _display.setTextColor(canOn ? COL_GOOD : COL_ERR);
   _display.print(canOn ? F("ON") : F("OFF"));
+}
+
+// =============================================================================
+// PAGE 2 LIVE — Flicker-free partial redraw of dynamic values
+// =============================================================================
+void DisplayManager::_drawAquariumPageLive() {
+  float dist = _safety->getLastDistance();
+
+  // Water level value (y=42, size 2) — overwrite in place
+  _display.setTextSize(2);
+  _display.setCursor(4, 42);
+  if (dist >= 0) {
+    const float maxDist = 30.0f;
+    float pct = 1.0f - (dist / maxDist);
+    if (pct > 1.0f)
+      pct = 1.0f;
+    if (pct < 0.0f)
+      pct = 0.0f;
+    int pctVal = (int)(pct * 100);
+    char lvlBuf[8];
+    snprintf(lvlBuf, sizeof(lvlBuf), "%-4d", pctVal); // left-align, pad spaces
+    _display.setTextColor(COL_TEXT, COL_BG);
+    _display.print(lvlBuf);
+    _display.setTextSize(1);
+    _display.setTextColor(COL_TEXT, COL_BG);
+    _display.print(F("%  "));
+  } else {
+    _display.setTextColor(COL_TEXT, COL_BG);
+    _display.print(F("-- %  "));
+  }
+
+  // TPA state (y=80, size 2)
+  const char *state = _water->getStateName();
+  uint16_t stateCol = COL_GOOD;
+  if (_water->isRunning())
+    stateCol = COL_WARN;
+  if (_water->getState() == TPAState::ERROR)
+    stateCol = COL_ERR;
+
+  _display.setTextSize(2);
+  _display.setTextColor(stateCol, COL_BG);
+  _display.setCursor(4, 80);
+  // Pad to 10 chars to clear previous longer state names
+  char stateBuf[11];
+  snprintf(stateBuf, sizeof(stateBuf), "%-10s", state);
+  _display.print(stateBuf);
+
+  // Canister status (y=104, size 1)
+  bool canOn = _water->isCanisterOn();
+  _display.setTextSize(1);
+  _display.setCursor(64, 104); // after "CANISTER: " label
+  _display.setTextColor(canOn ? COL_GOOD : COL_ERR, COL_BG);
+  _display.print(canOn ? F("ON ") : F("OFF"));
 }
 
 // =============================================================================

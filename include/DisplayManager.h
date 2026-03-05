@@ -65,6 +65,7 @@ private:
   // Page drawing methods
   void _drawNetworkPage();
   void _drawAquariumPage();
+  void _drawAquariumPageLive(); // flicker-free partial redraw
   void _drawStockPage();
   void _drawSchedulePage();
 
