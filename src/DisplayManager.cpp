@@ -152,9 +152,11 @@ void DisplayManager::update() {
       _lastPageSwitch = now;
       _lastRedraw = now;
 
-      _display.fillScreen(COL_BG);
+      // Clear content area only (keep header solid)
+      _display.fillRect(0, 24, 160, 104, COL_BG);
       uint8_t lang = _web->getLanguage();
-      _drawHeader(STR_AQUARIUM[lang]);
+      _drawHeaderTitle(STR_AQUARIUM[lang]);
+      _drawHeaderLevelBar();
       _drawAquariumPage();
       return;
     }
@@ -174,12 +176,14 @@ void DisplayManager::update() {
     _lastRedraw = now;
     _currentPage = (_currentPage + 1) % NUM_PAGES;
 
-    _display.fillScreen(COL_BG);
+    // Clear content area only (keep header solid)
+    _display.fillRect(0, 24, 160, 104, COL_BG);
 
     uint8_t lang = _web->getLanguage();
     const char *pageNames[] = {STR_NETWORK[lang], STR_AQUARIUM[lang],
                                STR_STOCK[lang], STR_SCHEDULE[lang]};
-    _drawHeader(pageNames[_currentPage]);
+    _drawHeaderTitle(pageNames[_currentPage]);
+    _drawHeaderLevelBar();
 
     switch (_currentPage) {
     case 0:
@@ -227,18 +231,28 @@ void DisplayManager::update() {
 // HEADER — accent bar with title + water level bar
 // =============================================================================
 void DisplayManager::_drawHeader(const char *title) {
-  // Accent bar with title
+  // Full header: accent bar + title + level bar + separator
   _display.fillRect(0, 0, 160, 22, COL_ACCENT);
   _display.setTextSize(1);
   _display.setTextColor(COL_BG);
   _display.setCursor(4, 7);
   _display.print(title);
 
-  // Water level bar
   _drawHeaderLevelBar();
-
-  // Thin separator line
   _display.drawFastHLine(0, 23, 160, COL_BAR_BG);
+}
+
+// =============================================================================
+// HEADER TITLE — partial update (overwrites on accent background)
+// =============================================================================
+void DisplayManager::_drawHeaderTitle(const char *title) {
+  _display.setTextSize(1);
+  _display.setTextColor(COL_BG, COL_ACCENT); // text on accent = no flicker
+  _display.setCursor(4, 7);
+  // Pad to 12 chars to clear previous longer title
+  char buf[13];
+  snprintf(buf, sizeof(buf), "%-12s", title);
+  _display.print(buf);
 }
 
 // =============================================================================

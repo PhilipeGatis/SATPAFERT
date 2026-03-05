@@ -73,4 +73,5 @@ private:
   // Helper
   void _drawHeader(const char *title);
   void _drawHeaderLevelBar();
+  void _drawHeaderTitle(const char *title);
 };
