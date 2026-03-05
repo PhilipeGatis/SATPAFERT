@@ -57,8 +57,10 @@ private:
   // Page cycling
   uint8_t _currentPage;
   unsigned long _lastPageSwitch;
+  unsigned long _lastRedraw;
   static constexpr uint8_t NUM_PAGES = 4;
-  static constexpr unsigned long PAGE_CYCLE_MS = 5000; // 5 seconds
+  static constexpr unsigned long PAGE_CYCLE_MS = 5000; // switch page every 5s
+  static constexpr unsigned long REDRAW_MS = 1000; // refresh content every 1s
 
   // Page drawing methods
   void _drawNetworkPage();

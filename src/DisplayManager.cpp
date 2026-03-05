@@ -39,7 +39,7 @@ static const uint16_t CHANNEL_COLORS[] = {
 DisplayManager::DisplayManager()
     : _display(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_MOSI, PIN_TFT_SCK, PIN_TFT_RST),
       _time(nullptr), _water(nullptr), _fert(nullptr), _safety(nullptr),
-      _web(nullptr), _currentPage(0), _lastPageSwitch(0) {}
+      _web(nullptr), _currentPage(0), _lastPageSwitch(0), _lastRedraw(0) {}
 
 // =============================================================================
 // INIT HARDWARE
@@ -120,11 +120,10 @@ void DisplayManager::update() {
   // Lock on aquarium page while TPA is running
   bool tpaRunning = _water->isRunning();
   if (tpaRunning) {
-    // Force aquarium page, still respect timing to avoid flicker
-    if (now - _lastPageSwitch < PAGE_CYCLE_MS) {
+    if (now - _lastRedraw < REDRAW_MS) {
       return;
     }
-    _lastPageSwitch = now;
+    _lastRedraw = now;
     _currentPage = 1; // Aquarium page
 
     _display.fillScreen(COL_BG);
@@ -134,10 +133,17 @@ void DisplayManager::update() {
     return;
   }
 
-  if (now - _lastPageSwitch < PAGE_CYCLE_MS) {
+  // Check if it's time to switch pages
+  if (now - _lastPageSwitch >= PAGE_CYCLE_MS) {
+    _lastPageSwitch = now;
+    _currentPage = (_currentPage + 1) % NUM_PAGES;
+  }
+
+  // Redraw current page every REDRAW_MS (1s) for live updates
+  if (now - _lastRedraw < REDRAW_MS) {
     return;
   }
-  _lastPageSwitch = now;
+  _lastRedraw = now;
 
   _display.fillScreen(COL_BG);
 
@@ -160,8 +166,6 @@ void DisplayManager::update() {
     _drawSchedulePage();
     break;
   }
-
-  _currentPage = (_currentPage + 1) % NUM_PAGES;
 }
 
 // =============================================================================
