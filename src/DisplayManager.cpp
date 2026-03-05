@@ -168,12 +168,11 @@ void DisplayManager::update() {
   if (_currentPage == 3 && (now - _lastRedraw >= REDRAW_MS)) {
     _lastRedraw = now;
 
-    // Clear only the clock area (y=32, h=24, full width)
-    _display.fillRect(0, 30, 160, 26, COL_BG);
-
+    // Use setTextColor(fg, bg) — draws background behind each char pixel
+    // No fillRect needed = zero flicker
     DateTime dt = _time->now();
     _display.setTextSize(3);
-    _display.setTextColor(COL_TEXT);
+    _display.setTextColor(COL_TEXT, COL_BG); // fg + bg = no flicker
     char timeBuf[9];
     snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", dt.hour(), dt.minute(),
              dt.second());
