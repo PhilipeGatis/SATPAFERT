@@ -91,10 +91,9 @@ iec_fuse_h = 28; // mm - altura do recorte
 iec_fuse_mount_w = 40; // mm - distância entre furos de fixação
 iec_fuse_mount_d = 3.5; // mm - diâmetro dos furos
 
-// -- Tomada AC Canister: Padrão brasileiro NBR 14136 --
-nbr_outlet_d = 37; // mm - diâmetro do recorte circular
-nbr_outlet_mount_spacing = 45; // mm - distância entre furos de fixação
-nbr_outlet_mount_d = 3.5; // mm - diâmetro dos furos
+// -- Tomada AC Canister: Margirius snap-in (padrão brasileiro) --
+canister_outlet_w = 40.5; // mm - largura do rasgo retangular
+canister_outlet_h = 21.7; // mm - altura do rasgo retangular
 
 // -- Conectores DC para bombas (8x) --
 pump_conn_d = 8; // mm - diâmetro do furo de montagem (P4)
@@ -293,8 +292,8 @@ module right_panel_cutouts() {
 
   translate([panel_x + 0.1, 25, base_height / 2 + 2])
     rotate([0, -90, 0])
-      translate([-21.7 / 2, -40.5 / 2, 0])
-        cube([21.7, 40.5, wall + 0.2]);
+      translate([-canister_outlet_h / 2, -canister_outlet_w / 2, 0])
+        cube([canister_outlet_h, canister_outlet_w, wall + 0.2]);
 }
 
 module sensor_labels() {
@@ -308,7 +307,7 @@ module sensor_labels() {
           font="Liberation Sans:style=Bold"
         );
 
-  translate([panel_x + 0.1, 25, base_height / 2 + nbr_outlet_d / 2 + 6])
+  translate([panel_x + 0.1, 25, base_height / 2 + canister_outlet_h / 2 + 6])
     rotate([90, 0, 90])
       linear_extrude(0.6)
         text(

@@ -68,7 +68,8 @@ ultra_d = 28.5;
 // PARÂMETROS DOS CONECTORES
 // ============================================================
 
-nbr_outlet_d = 37;
+canister_outlet_w = 40.5; // mm - largura do rasgo retangular
+canister_outlet_h = 21.7; // mm - altura do rasgo retangular
 pump_conn_d = 8;
 pump_conn_qty = 8;
 
@@ -366,11 +367,11 @@ module base_2d_right() {
     translate([ac_x - 27.2 / 2, ac_z - panel_h / 2 - 31.2 / 2])
       square([27.2, 31.2]);
 
-    // --- Tomada NBR 14136 CANISTER (40.5 × 21.7mm) ---
+    // --- Tomada Canister Margirius snap-in (40.5 × 21.7mm) ---
     can_x = 25;
     can_z = base_height / 2 + 2 - mat_t;
-    translate([can_x - 40.5 / 2, can_z - panel_h / 2 - 21.7 / 2])
-      square([40.5, 21.7]);
+    translate([can_x - canister_outlet_w / 2, can_z - panel_h / 2 - canister_outlet_h / 2])
+      square([canister_outlet_w, canister_outlet_h]);
   }
 }
 
