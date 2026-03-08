@@ -99,10 +99,9 @@ canister_outlet_h = 21.7; // mm - altura do rasgo retangular
 pump_conn_d = 8; // mm - diâmetro do furo de montagem (P4)
 pump_conn_qty = 8;
 
-// -- Conectores RJ45 para sensores --
-rj45_w = 16; // mm - largura do recorte
-rj45_h = 14; // mm - altura do recorte
-rj45_qty = 3; // Ultrassônico, capacitivo, boia
+// -- Conectores GX12 para sensores (aviation plug) --
+gx12_d = 12; // mm - diâmetro do furo de montagem
+gx12_qty = 3; // Ultrassônico, capacitivo, boia
 
 // -- Passagem de cabo (PG7 gland) --
 pg7_d = 12; // mm - diâmetro do furo
@@ -237,38 +236,30 @@ module back_panel_cutouts(){}
 module ac_labels(){}
 
 // ============================================================
-// PAINEL FRONTAL - Sensores (RJ45)
+// PAINEL FRONTAL - Sensores (GX12)
 // ============================================================
 module front_panel_cutouts() {
   panel_y = box_depth / 2;
-  rj45_spacing = rj45_w + 8;
-  sensor_z = wall + psu_h - 4 + rj45_h / 2;
+  gx12_spacing = gx12_d + 10; // espaçamento entre centros
+  sensor_z = wall + psu_h - 4;
 
-  translate([-(rj45_spacing), panel_y + 0.1, sensor_z])
-    rotate([90, 0, 0])
-      translate([-rj45_w / 2, -rj45_h / 2, 0])
-        cube([rj45_w, rj45_h, wall + 0.2]);
-
-  translate([0, panel_y + 0.1, sensor_z])
-    rotate([90, 0, 0])
-      translate([-8 / 2, -6 / 2, 0])
-        cube([8, 6, wall + 0.2]);
-
-  translate([rj45_spacing, panel_y + 0.1, sensor_z])
-    rotate([90, 0, 0])
-      translate([-rj45_w / 2, -rj45_h / 2, 0])
-        cube([rj45_w, rj45_h, wall + 0.2]);
+  for (i = [0:gx12_qty - 1]) {
+    x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
+    translate([x_offset, panel_y + 0.1, sensor_z])
+      rotate([90, 0, 0])
+        cylinder(d=gx12_d, h=wall + 0.2, $fn=40);
+  }
 }
 
 module front_panel_labels() {
   panel_y = box_depth / 2;
-  rj45_spacing = rj45_w + 8;
+  gx12_spacing = gx12_d + 10;
   labels = ["ULTRA", "CAP", "BOIA"];
-  sensor_z = wall + psu_h + 1 + rj45_h / 2;
+  sensor_z = wall + psu_h - 4;
 
-  for (i = [0:rj45_qty - 1]) {
-    x_offset = -(rj45_qty - 1) * rj45_spacing / 2 + i * rj45_spacing;
-    translate([x_offset, panel_y + 0.1, sensor_z / 2])
+  for (i = [0:gx12_qty - 1]) {
+    x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
+    translate([x_offset, panel_y + 0.1, sensor_z + gx12_d / 2 + 4])
       rotate([-90, 180, 0])
         linear_extrude(0.6)
           text(
@@ -283,7 +274,6 @@ module front_panel_labels() {
 // ============================================================
 module right_panel_cutouts() {
   panel_x = box_width / 2;
-  rj45_spacing = rj45_w + 8;
 
   translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 2])
     rotate([0, -90, 0])

@@ -73,9 +73,8 @@ canister_outlet_h = 21.7; // mm - altura do rasgo retangular
 pump_conn_d = 8;
 pump_conn_qty = 8;
 
-rj45_w = 16;
-rj45_h = 14;
-rj45_qty = 3;
+gx12_d = 12; // mm - diâmetro do furo de montagem GX12
+gx12_qty = 3; // Ultrassônico, capacitivo, boia
 
 // -- Botão de painel (push button momentâneo 12mm) --
 btn_panel_d = 12; // mm - diâmetro do furo de montagem
@@ -250,20 +249,19 @@ module base_2d_front() {
     translate([-panel_w / 2, -panel_h / 2])
       fj_edge(panel_w, "tabs");
 
-    // --- Recortes sensores ---
-    rj45_spacing = rj45_w + 8;
+    // --- Recortes sensores GX12 (furos circulares 12mm) ---
+    gx12_spacing = gx12_d + 10;
     sensor_z_2d = psu_h - 4;
 
-    translate([-(rj45_spacing) - rj45_w / 2, sensor_z_2d - panel_h / 2])
-      square([rj45_w, rj45_h]);
-    translate([-8 / 2, sensor_z_2d - panel_h / 2])
-      square([8, 6]);
-    translate([rj45_spacing - rj45_w / 2, sensor_z_2d - panel_h / 2])
-      square([rj45_w, rj45_h]);
+    for (i = [0:gx12_qty - 1]) {
+      x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
+      translate([x_offset, sensor_z_2d - panel_h / 2])
+        circle(d=gx12_d, $fn=40);
+    }
 
     // --- Furo botão de painel (12mm) ---
-    btn_x = rj45_spacing + rj45_w / 2 + 20;
-    btn_z = sensor_z_2d + rj45_h / 2 - panel_h / 2;
+    btn_x = (gx12_qty - 1) * gx12_spacing / 2 + gx12_d / 2 + 20;
+    btn_z = sensor_z_2d - panel_h / 2;
     translate([btn_x, btn_z])
       circle(d=btn_panel_d, $fn=40);
   }
