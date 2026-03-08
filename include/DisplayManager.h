@@ -46,6 +46,7 @@ private:
   static constexpr uint16_t COL_WARN = 0xFFE0;   // Yellow
   static constexpr uint16_t COL_ERR = 0xF800;    // Red
   static constexpr uint16_t COL_BAR_BG = 0x4208; // Dark gray
+  static constexpr uint16_t COL_SEL = 0x2104;    // Selection highlight bg
 
   // Manager pointers
   TimeManager *_time;
@@ -63,12 +64,35 @@ private:
   static constexpr unsigned long REDRAW_MS = 1000; // refresh content every 1s
   uint8_t _bootLine;                               // boot log line counter
 
+  // ── Button state ──
+  bool _btnLastState;        // previous digitalRead (true=released)
+  unsigned long _btnPressTs; // millis when button was pressed
+  bool _btnHandled;          // true if current press already acted on
+  static constexpr unsigned long BTN_DEBOUNCE_MS = 50;
+  static constexpr unsigned long BTN_LONG_MS = 3000;
+
+  // ── Display on/off ──
+  bool _displayOn;
+  unsigned long _lastInteraction; // millis of last button press
+
+  // ── Menu state ──
+  bool _inMenu;
+  uint8_t _menuItem;
+  static constexpr uint8_t MENU_ITEMS = 2;
+
+  // Button handling
+  void _readButton();
+
   // Page drawing methods
   void _drawNetworkPage();
   void _drawAquariumPage();
   void _drawAquariumPageLive(); // flicker-free partial redraw
   void _drawStockPage();
   void _drawSchedulePage();
+  void _drawMenuPage();
+  void _switchToPage(uint8_t page);
+  void _executeMenuItem();
+  void _displayOff();
 
   // Helper
   void _drawHeader(const char *title);

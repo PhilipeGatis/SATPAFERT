@@ -21,6 +21,14 @@ static const char *STR_WATER_LEVEL[] = {"NIVEL DA AGUA", "WATER LEVEL",
 static const char *STR_NEXT_TPA[] = {"PROXIMA TPA", "NEXT WC", "NEXT WC"};
 static const char *STR_DAYS[] = {"dias", "days", "days"};
 
+// Menu strings
+static const char *STR_MENU[] = {"MENU", "MENU", "MENU"};
+static const char *STR_MENU_TPA[] = {"INICIAR TPA", "START WC", "START WC"};
+static const char *STR_MENU_MAINT_ON[] = {"MANUTENCAO ON", "MAINT. ON",
+                                          "MAINT. ON"};
+static const char *STR_MENU_MAINT_OFF[] = {"MANUTENCAO OFF", "MAINT. OFF",
+                                           "MAINT. OFF"};
+
 // =============================================================================
 // PER-CHANNEL BAR COLORS (unique hue per fertilizer + prime)
 // =============================================================================
@@ -40,12 +48,16 @@ DisplayManager::DisplayManager()
     : _display(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_MOSI, PIN_TFT_SCK, PIN_TFT_RST),
       _time(nullptr), _water(nullptr), _fert(nullptr), _safety(nullptr),
       _web(nullptr), _currentPage(0), _lastPageSwitch(0), _lastRedraw(0),
-      _bootLine(0) {}
+      _bootLine(0), _btnLastState(true), _btnPressTs(0), _btnHandled(false),
+      _displayOn(true), _lastInteraction(0), _inMenu(false), _menuItem(0) {}
 
 // =============================================================================
 // INIT HARDWARE
 // =============================================================================
 bool DisplayManager::initHardware() {
+  // Button
+  pinMode(PIN_BTN, INPUT_PULLUP);
+
   _display.initR(INITR_BLACKTAB);
   _display.setRotation(1); // Landscape: 160×128
   Serial.println("[Display] ST7735 128x160 initialized OK.");
@@ -69,6 +81,8 @@ bool DisplayManager::initHardware() {
   _display.setTextColor(COL_GOOD);
   _display.setCursor(35, 100);
   _display.print(F("Aquarium Control"));
+
+  _lastInteraction = millis();
 
   return true;
 }
@@ -134,25 +148,45 @@ void DisplayManager::begin(TimeManager *time, WaterManager *water,
   _safety = safety;
   _web = web;
   _lastPageSwitch = millis();
+  _lastInteraction = millis();
 }
 
 // =============================================================================
 // UPDATE — cycles pages, locks on TPA page when water change is running
 // =============================================================================
 void DisplayManager::update() {
+  // --- Button handling first ---
+  _readButton();
+
   unsigned long now = millis();
 
-  // Lock on aquarium page while TPA is running
+  // --- Auto-off display after timeout ---
+  if (_displayOn && (now - _lastInteraction >= DISPLAY_TIMEOUT_MS)) {
+    _displayOff();
+    return;
+  }
+
+  if (!_displayOn)
+    return; // screen is off, nothing to draw
+
+  // --- Menu mode ---
+  if (_inMenu) {
+    // Menu exits on 5s inactivity
+    if (now - _lastInteraction >= 5000) {
+      _inMenu = false;
+      _lastPageSwitch = now; // force full page redraw
+      _switchToPage(_currentPage);
+    }
+    return; // menu is static, no auto-refresh needed
+  }
+
+  // --- Lock on aquarium page while TPA is running ---
   bool tpaRunning = _water->isRunning();
   if (tpaRunning) {
-    _currentPage = 1; // Aquarium page
-
-    // Full draw on first entry or every PAGE_CYCLE_MS (for header bar update)
+    _currentPage = 1;
     if (now - _lastPageSwitch >= PAGE_CYCLE_MS) {
       _lastPageSwitch = now;
       _lastRedraw = now;
-
-      // Clear content area only (keep header solid)
       _display.fillRect(0, 24, 160, 104, COL_BG);
       uint8_t lang = _web->getLanguage();
       _drawHeaderTitle(STR_AQUARIUM[lang]);
@@ -160,8 +194,6 @@ void DisplayManager::update() {
       _drawAquariumPage();
       return;
     }
-
-    // Partial redraw every 1s — only dynamic values (level, state, canister)
     if (now - _lastRedraw >= REDRAW_MS) {
       _lastRedraw = now;
       _drawAquariumPageLive();
@@ -169,48 +201,21 @@ void DisplayManager::update() {
     return;
   }
 
-  // Check if it's time to switch pages (full redraw)
+  // --- Normal auto-cycle pages ---
   bool pageSwitch = (now - _lastPageSwitch >= PAGE_CYCLE_MS);
   if (pageSwitch) {
     _lastPageSwitch = now;
     _lastRedraw = now;
     _currentPage = (_currentPage + 1) % NUM_PAGES;
-
-    // Clear content area only (keep header solid)
-    _display.fillRect(0, 24, 160, 104, COL_BG);
-
-    uint8_t lang = _web->getLanguage();
-    const char *pageNames[] = {STR_NETWORK[lang], STR_AQUARIUM[lang],
-                               STR_STOCK[lang], STR_SCHEDULE[lang]};
-    _drawHeaderTitle(pageNames[_currentPage]);
-    _drawHeaderLevelBar();
-
-    switch (_currentPage) {
-    case 0:
-      _drawNetworkPage();
-      break;
-    case 1:
-      _drawAquariumPage();
-      break;
-    case 2:
-      _drawStockPage();
-      break;
-    case 3:
-      _drawSchedulePage();
-      break;
-    }
+    _switchToPage(_currentPage);
     return;
   }
 
-  // Partial redraw every 1s for live data pages
+  // --- Partial redraw every 1s ---
   if (now - _lastRedraw >= REDRAW_MS) {
     _lastRedraw = now;
-
-    // Always update the header level bar
     _drawHeaderLevelBar();
-
     if (_currentPage == 3) {
-      // Schedule page — clock seconds
       DateTime dt = _time->now();
       _display.setTextSize(3);
       _display.setTextColor(COL_TEXT, COL_BG);
@@ -221,10 +226,182 @@ void DisplayManager::update() {
       _display.setCursor((160 - tw) / 2, 32);
       _display.print(timeBuf);
     } else if (_currentPage == 1) {
-      // Aquarium page — level, TPA state, canister
       _drawAquariumPageLive();
     }
   }
+}
+
+// =============================================================================
+// BUTTON — debounce + short/long press detection
+// =============================================================================
+void DisplayManager::_readButton() {
+  bool btnNow = digitalRead(PIN_BTN); // LOW = pressed (active low)
+  unsigned long now = millis();
+
+  // Detect press edge (HIGH → LOW)
+  if (_btnLastState && !btnNow) {
+    // Button just pressed
+    _btnPressTs = now;
+    _btnHandled = false;
+  }
+
+  // While held: check for long press
+  if (!btnNow && !_btnHandled && (now - _btnPressTs >= BTN_LONG_MS)) {
+    _btnHandled = true;
+    _lastInteraction = now;
+
+    if (!_displayOn) {
+      // Wake up display
+      _displayOn = true;
+      _switchToPage(_currentPage);
+    } else if (_inMenu) {
+      // Long press in menu = execute
+      _executeMenuItem();
+    } else {
+      // Long press on pages = open menu
+      _inMenu = true;
+      _menuItem = 0;
+      _drawMenuPage();
+    }
+  }
+
+  // Detect release edge (LOW → HIGH)
+  if (!_btnLastState && btnNow) {
+    unsigned long held = now - _btnPressTs;
+    if (!_btnHandled && held >= BTN_DEBOUNCE_MS && held < BTN_LONG_MS) {
+      // Short press
+      _lastInteraction = now;
+
+      if (!_displayOn) {
+        // Wake display
+        _displayOn = true;
+        _switchToPage(_currentPage);
+      } else if (_inMenu) {
+        // Next menu item
+        _menuItem = (_menuItem + 1) % MENU_ITEMS;
+        _drawMenuPage();
+      } else {
+        // Next page
+        _currentPage = (_currentPage + 1) % NUM_PAGES;
+        _lastPageSwitch = now;
+        _lastRedraw = now;
+        _switchToPage(_currentPage);
+      }
+    }
+  }
+
+  _btnLastState = btnNow;
+}
+
+// =============================================================================
+// SWITCH TO PAGE — full redraw of a specific page
+// =============================================================================
+void DisplayManager::_switchToPage(uint8_t page) {
+  _display.fillRect(0, 24, 160, 104, COL_BG);
+  uint8_t lang = _web->getLanguage();
+  const char *pageNames[] = {STR_NETWORK[lang], STR_AQUARIUM[lang],
+                             STR_STOCK[lang], STR_SCHEDULE[lang]};
+  _drawHeaderTitle(pageNames[page]);
+  _drawHeaderLevelBar();
+
+  switch (page) {
+  case 0:
+    _drawNetworkPage();
+    break;
+  case 1:
+    _drawAquariumPage();
+    break;
+  case 2:
+    _drawStockPage();
+    break;
+  case 3:
+    _drawSchedulePage();
+    break;
+  }
+}
+
+// =============================================================================
+// DISPLAY OFF — fill black
+// =============================================================================
+void DisplayManager::_displayOff() {
+  _displayOn = false;
+  _inMenu = false;
+  _display.fillScreen(COL_BG);
+}
+
+// =============================================================================
+// MENU PAGE — simple list with selection highlight
+// =============================================================================
+void DisplayManager::_drawMenuPage() {
+  uint8_t lang = _web ? _web->getLanguage() : 0;
+
+  // Full redraw of menu
+  _display.fillRect(0, 0, 160, 128, COL_BG);
+
+  // Header
+  _display.fillRect(0, 0, 160, 22, COL_WARN);
+  _display.setTextSize(1);
+  _display.setTextColor(COL_BG);
+  _display.setCursor(4, 7);
+  _display.print(STR_MENU[lang]);
+  _display.drawFastHLine(0, 23, 160, COL_BAR_BG);
+
+  const char *items[MENU_ITEMS];
+  items[0] = STR_MENU_TPA[lang];
+  items[1] = _safety->isMaintenanceMode() ? STR_MENU_MAINT_OFF[lang]
+                                          : STR_MENU_MAINT_ON[lang];
+
+  const uint8_t itemH = 28;
+  const uint8_t startY = 34;
+
+  for (uint8_t i = 0; i < MENU_ITEMS; i++) {
+    uint8_t y = startY + i * (itemH + 4);
+    bool selected = (i == _menuItem);
+
+    if (selected) {
+      _display.fillRoundRect(6, y, 148, itemH, 4, COL_SEL);
+      _display.drawRoundRect(6, y, 148, itemH, 4, COL_ACCENT);
+    } else {
+      _display.drawRoundRect(6, y, 148, itemH, 4, COL_BAR_BG);
+    }
+
+    _display.setTextSize(1);
+    _display.setTextColor(selected ? COL_ACCENT : COL_DIM);
+    _display.setCursor(16, y + 10);
+    _display.print(items[i]);
+  }
+
+  // Footer hint
+  _display.setTextSize(1);
+  _display.setTextColor(COL_DIM);
+  _display.setCursor(4, 110);
+  _display.print(F("Click=Next  Hold=OK"));
+}
+
+// =============================================================================
+// EXECUTE MENU ITEM
+// =============================================================================
+void DisplayManager::_executeMenuItem() {
+  switch (_menuItem) {
+  case 0: // Start TPA
+    _water->startTPA();
+    Serial.println("[Btn] TPA started from display");
+    break;
+  case 1: // Toggle maintenance
+    if (_safety->isMaintenanceMode()) {
+      _safety->exitMaintenance();
+      Serial.println("[Btn] Maintenance OFF from display");
+    } else {
+      _safety->enterMaintenance();
+      Serial.println("[Btn] Maintenance ON from display");
+    }
+    break;
+  }
+
+  // Exit menu and go back to pages
+  _inMenu = false;
+  _lastPageSwitch = millis();
+  _switchToPage(_currentPage);
 }
 
 // =============================================================================

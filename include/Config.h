@@ -37,6 +37,12 @@ constexpr uint8_t PIN_TFT_MOSI = 23; // SDA  — SPI Data
 constexpr uint8_t PIN_TFT_SCK = 16;  // SCK  — SPI Clock
 constexpr int8_t PIN_TFT_RST = -1;   // RESET — Tied to ESP32 EN
 
+// --- Navigation Button ---
+constexpr uint8_t PIN_BTN = 0; // BOOT button (INPUT_PULLUP, active LOW)
+
+// --- Display ---
+constexpr unsigned long DISPLAY_TIMEOUT_MS = 30UL * 1000; // 30s auto-off
+
 // --- I2C (DS3231 RTC) ---
 // Using ESP32 default I2C: SDA=21, SCL=22
 
