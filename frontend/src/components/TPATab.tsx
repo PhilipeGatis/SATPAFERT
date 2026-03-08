@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, type AQStatus } from '../App';
 import { FertCard } from './FertsTab';
+import FertConfigModal from './FertConfigModal';
 import { useT } from '../i18n';
 
 
@@ -17,6 +18,9 @@ export default function TPATab({ status }: { status: AQStatus | null }) {
     const [drainMl, setDrainMl] = useState('');
     const [refillMl, setRefillMl] = useState('');
     const [running3s, setRunning3s] = useState<string | null>(null);
+
+    // Prime config modal
+    const [showPrimeConfig, setShowPrimeConfig] = useState(false);
 
     useEffect(() => {
         if (status) {
@@ -260,7 +264,16 @@ export default function TPATab({ status }: { status: AQStatus | null }) {
 
             {/* PRIME (CH5) CONFIGURATION */}
             {status?.stocks && status.stocks.length >= 5 && (
-                <FertCard index={4} s={status.stocks[4]} hideAgenda={true} />
+                <FertCard index={4} s={status.stocks[4]} onConfig={() => setShowPrimeConfig(true)} />
+            )}
+
+            {/* Prime Config Modal */}
+            {showPrimeConfig && status?.stocks && status.stocks.length >= 5 && (
+                <FertConfigModal
+                    index={4}
+                    s={status.stocks[4]}
+                    onClose={() => setShowPrimeConfig(false)}
+                />
             )}
 
         </div>

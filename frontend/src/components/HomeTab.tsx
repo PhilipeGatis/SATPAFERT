@@ -37,7 +37,6 @@ export default function HomeTab({ status }: { status: AQStatus | null }) {
                     <thead>
                         <tr className="border-b border-white/10 text-[10px] text-muted uppercase tracking-wider">
                             <th className="py-2 pr-2 font-medium">{t('home.channel')}</th>
-                            <th className="py-2 px-1 font-medium text-center">{t('home.hour')}</th>
                             {shortDays.map((d, i) => (
                                 <th key={i} className="py-2 px-1 font-medium text-center">{d}</th>
                             ))}
@@ -49,15 +48,17 @@ export default function HomeTab({ status }: { status: AQStatus | null }) {
                                 <td className="py-3 pr-2 font-medium text-text whitespace-nowrap">
                                     {s.name || `CH ${s.originalIndex + 1}`}
                                 </td>
-                                <td className="py-3 px-1 font-mono text-muted text-center tracking-tighter">
-                                    {String(s.sH || 0).padStart(2, '0')}:{String(s.sM || 0).padStart(2, '0')}
-                                </td>
                                 {[0, 1, 2, 3, 4, 5, 6].map(di => {
                                     const vol = s.doses?.[di] || 0;
+                                    const h = Array.isArray(s.sH) ? String(s.sH[di] ?? 0).padStart(2, '0') : '00';
+                                    const m = Array.isArray(s.sM) ? String(s.sM[di] ?? 0).padStart(2, '0') : '00';
                                     return (
                                         <td key={di} className="py-3 px-1 text-center">
                                             {Number(vol) > 0 ? (
-                                                <span className="font-bold text-accent2">{Number(vol)}</span>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="font-bold text-accent2">{Number(vol)}</span>
+                                                    <span className="text-[8px] text-muted">{h}:{m}</span>
+                                                </div>
                                             ) : (
                                                 <span className="text-muted/30">-</span>
                                             )}

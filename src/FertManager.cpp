@@ -5,12 +5,12 @@ FertManager::FertManager() {
     for (uint8_t d = 0; d < 7; d++) {
       _doseML[i][d] =
           0.0f; // Default 0 for all days to prevent accidental dosing
+      _schedHour[i][d] = DEFAULT_FERT_HOUR;
+      _schedMinute[i][d] = DEFAULT_FERT_MINUTE;
     }
     _stockML[i] = DEFAULT_STOCK_ML;
     _names[i] = (i < NUM_FERTS) ? String("CH") + String(i + 1) : "Prime";
     _lastDoseKey[i] = 0;
-    _schedHour[i] = DEFAULT_FERT_HOUR;
-    _schedMinute[i] = DEFAULT_FERT_MINUTE;
     _flowRateMLps[i] = FLOW_RATE_ML_PER_SEC; // Default 1.5 mL/s
     _pwm[i] = 255;
     _lowStockThreshold[i] = 50.0f; // Default low stock warning at 50 mL
@@ -45,8 +45,9 @@ void FertManager::update(DateTime now) {
   uint8_t currentMinute = now.minute();
 
   for (uint8_t i = 0; i < NUM_FERTS + 1; i++) {
-    // Check if it's the right time (minute precision)
-    if (currentHour == _schedHour[i] && currentMinute == _schedMinute[i]) {
+    // Check if it's the right time for today's day-of-week (minute precision)
+    if (currentHour == _schedHour[i][currentDow] &&
+        currentMinute == _schedMinute[i][currentDow]) {
       // Check if it was already dosed today
       if (_lastDoseKey[i] != todayKey) {
         float ds = _doseML[i][currentDow];
@@ -136,10 +137,20 @@ float FertManager::getDoseML(uint8_t ch, uint8_t dayOfWeek) const {
   return (ch <= NUM_FERTS && dayOfWeek < 7) ? _doseML[ch][dayOfWeek] : 0.0f;
 }
 
-void FertManager::setScheduleTime(uint8_t ch, uint8_t hour, uint8_t minute) {
+void FertManager::setScheduleTime(uint8_t ch, uint8_t day, uint8_t hour,
+                                  uint8_t minute) {
+  if (ch <= NUM_FERTS && day < 7) {
+    _schedHour[ch][day] = hour;
+    _schedMinute[ch][day] = minute;
+  }
+}
+
+void FertManager::setScheduleTimeAll(uint8_t ch, uint8_t hour, uint8_t minute) {
   if (ch <= NUM_FERTS) {
-    _schedHour[ch] = hour;
-    _schedMinute[ch] = minute;
+    for (uint8_t d = 0; d < 7; d++) {
+      _schedHour[ch][d] = hour;
+      _schedMinute[ch][d] = minute;
+    }
   }
 }
 
@@ -221,11 +232,13 @@ void FertManager::saveState() {
     snprintf(key, sizeof(key), "lk%d", i); // Last key
     _prefs.putUInt(key, _lastDoseKey[i]);
 
-    snprintf(key, sizeof(key), "sH%d", i); // Schedule Hour
-    _prefs.putUChar(key, _schedHour[i]);
-
-    snprintf(key, sizeof(key), "sM%d", i); // Schedule Minute
-    _prefs.putUChar(key, _schedMinute[i]);
+    // Schedule Hours/Minutes per day of week
+    for (uint8_t d = 0; d < 7; d++) {
+      snprintf(key, sizeof(key), "sH%d_%d", i, d);
+      _prefs.putUChar(key, _schedHour[i][d]);
+      snprintf(key, sizeof(key), "sM%d_%d", i, d);
+      _prefs.putUChar(key, _schedMinute[i][d]);
+    }
 
     snprintf(key, sizeof(key), "fR%d", i); // Flow Rate
     _prefs.putFloat(key, _flowRateMLps[i]);
@@ -284,11 +297,17 @@ void FertManager::_loadState() {
     snprintf(key, sizeof(key), "lk%d", i);
     _lastDoseKey[i] = _prefs.getUInt(key, 0);
 
+    // Per-day schedule times with backward compat from legacy single keys
     snprintf(key, sizeof(key), "sH%d", i);
-    _schedHour[i] = _prefs.getUChar(key, DEFAULT_FERT_HOUR);
-
+    uint8_t legacyHour = _prefs.getUChar(key, DEFAULT_FERT_HOUR);
     snprintf(key, sizeof(key), "sM%d", i);
-    _schedMinute[i] = _prefs.getUChar(key, DEFAULT_FERT_MINUTE);
+    uint8_t legacyMin = _prefs.getUChar(key, DEFAULT_FERT_MINUTE);
+    for (uint8_t d = 0; d < 7; d++) {
+      snprintf(key, sizeof(key), "sH%d_%d", i, d);
+      _schedHour[i][d] = _prefs.getUChar(key, legacyHour);
+      snprintf(key, sizeof(key), "sM%d_%d", i, d);
+      _schedMinute[i][d] = _prefs.getUChar(key, legacyMin);
+    }
 
     snprintf(key, sizeof(key), "fR%d", i);
     _flowRateMLps[i] = _prefs.getFloat(key, FLOW_RATE_ML_PER_SEC);

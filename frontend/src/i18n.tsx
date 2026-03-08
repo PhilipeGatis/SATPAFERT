@@ -113,6 +113,7 @@ const translations = {
     'fert.confirmCalib': { pt: 'Usar {ml}mL como medida de calibração de 3 segundos no canal {ch}?', en: 'Use {ml}mL as 3-second calibration for channel {ch}?', ja: '{ml}mLをチャンネル{ch}の3秒キャリブレーション値として使用しますか？' },
     'fert.enterMl': { pt: 'Insira a quantidade de mL medida.', en: 'Enter the measured mL amount.', ja: '計測したmL量を入力してください。' },
     'fert.shortDays': { pt: 'D,S,T,Q,Q,S,S', en: 'S,M,T,W,T,F,S', ja: '日,月,火,水,木,金,土' },
+    'fert.configure': { pt: 'Configurar', en: 'Configure', ja: '設定' },
 
     // ---- ConfigTab ----
     'config.aquarium': { pt: 'Configuração do Aquário', en: 'Aquarium Configuration', ja: '水槽設定' },

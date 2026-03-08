@@ -38,13 +38,15 @@ public:
   void setDoseML(uint8_t ch, uint8_t dayOfWeek, float ml);
   float getDoseML(uint8_t ch, uint8_t dayOfWeek) const;
 
-  // ---- Scheduling Config (NVS) ----
-  void setScheduleTime(uint8_t ch, uint8_t hour, uint8_t minute);
-  uint8_t getSchedHour(uint8_t ch) const {
-    return (ch <= NUM_FERTS) ? _schedHour[ch] : 0;
+  // ---- Scheduling Config per day of week (NVS) ----
+  void setScheduleTime(uint8_t ch, uint8_t day, uint8_t hour, uint8_t minute);
+  /// Set same time for all 7 days (convenience)
+  void setScheduleTimeAll(uint8_t ch, uint8_t hour, uint8_t minute);
+  uint8_t getSchedHour(uint8_t ch, uint8_t day) const {
+    return (ch <= NUM_FERTS && day < 7) ? _schedHour[ch][day] : 0;
   }
-  uint8_t getSchedMinute(uint8_t ch) const {
-    return (ch <= NUM_FERTS) ? _schedMinute[ch] : 0;
+  uint8_t getSchedMinute(uint8_t ch, uint8_t day) const {
+    return (ch <= NUM_FERTS && day < 7) ? _schedMinute[ch][day] : 0;
   }
 
   // ---- Flow Rate Calibration (NVS) ----
@@ -98,9 +100,9 @@ private:
   // Low stock warning threshold per channel (mL)
   float _lowStockThreshold[NUM_FERTS + 1];
 
-  // Schedule config
-  uint8_t _schedHour[NUM_FERTS + 1];
-  uint8_t _schedMinute[NUM_FERTS + 1];
+  // Schedule config (per day of week: 0=Sun..6=Sat)
+  uint8_t _schedHour[NUM_FERTS + 1][7];
+  uint8_t _schedMinute[NUM_FERTS + 1][7];
 
   // Calibrated flow rate (mL per second)
   float _flowRateMLps[NUM_FERTS + 1];

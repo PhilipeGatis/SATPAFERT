@@ -163,10 +163,19 @@ String WebManager::_buildStatusJSON() {
               String(_fert->getDoseML(i, 3), 1) + "," +
               String(_fert->getDoseML(i, 4), 1) + "," +
               String(_fert->getDoseML(i, 5), 1) + "," +
-              String(_fert->getDoseML(i, 6), 1) + "]" +
-              ",\"sH\":" + String(_fert->getSchedHour(i)) +
-              ",\"sM\":" + String(_fert->getSchedMinute(i)) +
-              ",\"fR\":" + String(_fert->getFlowRate(i), 2) +
+              String(_fert->getDoseML(i, 6), 1) + "]" + ",\"sH\":[";
+      for (uint8_t d = 0; d < 7; d++) {
+        if (d > 0)
+          json += ",";
+        json += String(_fert->getSchedHour(i, d));
+      }
+      json += "],\"sM\":[";
+      for (uint8_t d = 0; d < 7; d++) {
+        if (d > 0)
+          json += ",";
+        json += String(_fert->getSchedMinute(i, d));
+      }
+      json += "]" + String(",\"fR\":") + String(_fert->getFlowRate(i), 2) +
               ",\"pwm\":" + String(_fert->getPWM(i)) + "}";
     }
   }
@@ -521,20 +530,41 @@ void WebManager::_setupRoutes() {
              size_t index, size_t total) {
         String body = String((char *)data).substring(0, len);
         int ch = _extractInt(body, "channel");
-        int h = _extractInt(body, "hour");
-        int m = _extractInt(body, "minute");
         float doses[7] = {0};
         bool hasDoses = _extractFloatArray(body, "doses", doses, 7);
 
-        if (ch >= 0 && ch <= 4 && h >= 0 && h <= 23 && m >= 0 && m <= 59 &&
-            hasDoses && _fert) {
-          _fert->setScheduleTime(ch, h, m);
+        // Per-day times (new format: hours[] and minutes[] arrays)
+        float hours[7] = {-1, -1, -1, -1, -1, -1, -1};
+        float minutes[7] = {-1, -1, -1, -1, -1, -1, -1};
+        bool hasHours = _extractFloatArray(body, "hours", hours, 7);
+        bool hasMinutes = _extractFloatArray(body, "minutes", minutes, 7);
+
+        // Backward compat: single hour/minute applies to all days
+        int singleH = _extractInt(body, "hour");
+        int singleM = _extractInt(body, "minute");
+
+        if (ch >= 0 && ch <= 4 && hasDoses && _fert) {
           for (uint8_t d = 0; d < 7; d++) {
             _fert->setDoseML(ch, d, doses[d]);
           }
+
+          if (hasHours && hasMinutes) {
+            // Per-day times
+            for (uint8_t d = 0; d < 7; d++) {
+              int h = (int)hours[d];
+              int m = (int)minutes[d];
+              if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                _fert->setScheduleTime(ch, d, h, m);
+              }
+            }
+          } else if (singleH >= 0 && singleH <= 23 && singleM >= 0 &&
+                     singleM <= 59) {
+            // Legacy: apply same time to all days
+            _fert->setScheduleTimeAll(ch, singleH, singleM);
+          }
+
           _fert->saveState();
-          Serial.printf("[Web] CH%d Schedule updated -> time: %02d:%02d\n",
-                        ch + 1, h, m);
+          Serial.printf("[Web] CH%d Schedule updated\n", ch + 1);
         }
 
         // Low stock threshold (optional)

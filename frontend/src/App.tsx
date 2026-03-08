@@ -38,8 +38,8 @@ export type AQStatus = {
     name: string;
     stock: number;
     doses: number[];
-    sH: number;
-    sM: number;
+    sH: number[];
+    sM: number[];
     fR: number;
     pwm: number;
   }>;
