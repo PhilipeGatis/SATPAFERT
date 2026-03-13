@@ -36,15 +36,14 @@ screw_boss_h = base_height - wall; // mm
 
 // -- Fonte Colmeia 180W (dimensões reais) --
 // 199 x 98 x 42mm
-psu_w = 199;
-psu_d = 98;
+psu_w = 165;
+psu_d = 97.4;
 psu_h = 42;
 
-// -- ESP32 DevKit V1 (38 pinos) --
-// ~51 x 28mm, furos nos cantos
-esp32_w = 51;
-esp32_d = 28;
-esp32_mount_holes = [[3, 3], [48, 3], [3, 25], [48, 25]];
+// -- ESP32 MRD068A (terminal adapter) --
+// 63 x 69mm, furos: 58 x 64.5mm
+esp32_w = 63;
+esp32_d = 69;
 
 // -- Módulo MOSFET 8 canais (dimensões reais) --
 // PCB: 99 x 52mm, furos: 90 x 43mm, Ø3.2mm
@@ -52,9 +51,9 @@ mosfet_w = 99;
 mosfet_d = 52;
 
 // -- Módulo LM2596 (dimensões reais) --
-// 61 x 34 x 12mm
-lm2596_w = 61;
-lm2596_d = 34;
+// 65.7 x 35.7mm, furos: 60 x 30.7mm
+lm2596_w = 65.7;
+lm2596_d = 35.7;
 
 // -- Módulo Relé SSR 1CH (dimensões reais) --
 // 25mm(L) x 34mm(C) x 21mm(A)
@@ -62,18 +61,19 @@ ssr_w = 25;
 ssr_d = 34;
 
 // -- DS3231 RTC --
-// ~38 x 22mm
+// 38 x 21.7mm, 3 furos
 rtc_w = 38;
-rtc_d = 22;
+rtc_d = 21.7;
 
 // -- TFT ST7735 1.8" 160x128 (dimensões reais) --
 // PCB: 56 x 34 x 5mm
-tft_screen_w = 35; // mm - área visível (160px)
-tft_screen_h = 28; // mm - área visível (128px)
-tft_board_w = 56; // mm - PCB largura
-tft_board_h = 34; // mm - PCB altura
-tft_mount_holes_spacing_w = 52; // mm
-tft_mount_holes_spacing_h = 30; // mm
+tft_screen_w = 38.5; // mm - área visível
+tft_screen_h = 32;   // mm - área visível
+tft_screen_offset_x = -2.25; // mm - tela deslocada do centro
+tft_board_w = 58;  // mm - PCB largura
+tft_board_h = 34.4; // mm - PCB altura
+tft_mount_holes_spacing_w = 51.5; // mm
+tft_mount_holes_spacing_h = 28; // mm
 tft_mount_d = 2.2; // mm - M2
 
 // -- Módulo Sensor Ultrassônico --
@@ -153,7 +153,7 @@ module standoff(h = 6, outer_d = 4, inner_d = 2.2) {
 // --- Grid de standoffs para um módulo ---
 module module_standoffs(w, d, h = 6) {
   inset = 2.5;
-  if (w < 40) {
+  if (w < 35) {
     // Módulos pequenos: apenas 2 standoffs diagonais
     positions = [
       [-w / 2 + inset, -d / 2 + inset],
@@ -311,7 +311,7 @@ module sensor_labels() {
 // ============================================================
 module lid() {
   tft_x_offset = 40;
-  tft_y_offset = 45;
+  tft_y_offset = 65;
 
   color("LightCyan", 0.4)
     translate([0, 0, base_height])
@@ -324,7 +324,7 @@ module lid() {
 
         translate(
           [
-            tft_x_offset - tft_screen_w / 2,
+            tft_x_offset + tft_screen_offset_x - tft_screen_w / 2,
             tft_y_offset - tft_screen_h / 2,
             -0.1,
           ]
@@ -399,16 +399,16 @@ module base() {
             module_standoffs(mosfet_d, mosfet_w, h=6);
 
         color("DarkGreen")
-          translate([40, 45, wall - 0.5])
+          translate([40, 65, wall - 0.5])
             module_standoffs(esp32_w, esp32_d, h=6);
 
         color("DarkBlue")
-          translate([-20, 55, wall - 0.5])
+          translate([-20, 33, wall - 0.5])
             module_standoffs(lm2596_d, lm2596_w, h=6);
 
         color("Teal")
-          translate([40, 85, wall - 0.5])
-            module_standoffs(ultra_w, ultra_d, h=6);
+          translate([90, 65, wall - 0.5])
+            module_standoffs(ultra_d, ultra_w, h=6);
 
         color("Orange")
           translate([90, 30, wall - 0.5])
@@ -479,7 +479,7 @@ module module_area_labels() {
         );
 
   color("White")
-    translate([40, 45, wall])
+    translate([40, 65, wall])
       linear_extrude(label_h)
         text(
           "ESP32", size=4, halign="center", valign="center",
@@ -495,7 +495,7 @@ module module_area_labels() {
         );
 
   color("White")
-    translate([-20, 55, wall])
+    translate([-20, 33, wall])
       linear_extrude(label_h)
         text(
           "LM2596", size=3.5, halign="center", valign="center",
@@ -503,7 +503,7 @@ module module_area_labels() {
         );
 
   color("White")
-    translate([40, 85, wall])
+    translate([90, 65, wall])
       linear_extrude(label_h)
         text(
           "ULTRA", size=3.5, halign="center", valign="center",
@@ -548,16 +548,16 @@ module ghost_components() {
       cube([mosfet_d, mosfet_w, 15]);
 
   color("DarkGreen", 0.3)
-    translate([40 - esp32_w / 2, 45 - esp32_d / 2, wall + 6])
+    translate([40 - esp32_w / 2, 65 - esp32_d / 2, wall + 6])
       cube([esp32_w, esp32_d, 8]);
 
   color("DarkBlue", 0.3)
-    translate([-20 - lm2596_d / 2, 55 - lm2596_w / 2, wall + 6])
+    translate([-20 - lm2596_d / 2, 33 - lm2596_w / 2, wall + 6])
       cube([lm2596_d, lm2596_w, 10]);
 
   color("Teal", 0.3)
-    translate([40 - ultra_w / 2, 85 - ultra_d / 2, wall + 6])
-      cube([ultra_w, ultra_d, 8]);
+    translate([90 - ultra_d / 2, 65 - ultra_w / 2, wall + 6])
+      cube([ultra_d, ultra_w, 8]);
 
   color("Orange", 0.3)
     translate([90 - ssr_d / 2, 30 - ssr_w / 2, wall + 6])
@@ -568,7 +568,7 @@ module ghost_components() {
       cube([rtc_w, rtc_d, 5]);
 
   color("Cyan", 0.3)
-    translate([40 - tft_board_w / 2, 45 - tft_board_h / 2, base_height - 5])
+    translate([40 - tft_board_w / 2, 65 - tft_board_h / 2, base_height - 5])
       cube([tft_board_w, tft_board_h, 3]);
 }
 
@@ -587,16 +587,16 @@ module test_plate() {
       module_standoffs(mosfet_d, mosfet_w, h=6);
 
   color("DarkGreen")
-    translate([40, 45, plate_h - 0.5])
+    translate([40, 65, plate_h - 0.5])
       module_standoffs(esp32_w, esp32_d, h=6);
 
   color("DarkBlue")
-    translate([-20, 55, plate_h - 0.5])
+    translate([-20, 33, plate_h - 0.5])
       module_standoffs(lm2596_d, lm2596_w, h=6);
 
   color("Teal")
-    translate([40, 85, plate_h - 0.5])
-      module_standoffs(ultra_w, ultra_d, h=6);
+    translate([90, 65, plate_h - 0.5])
+      module_standoffs(ultra_d, ultra_w, h=6);
 
   color("Orange")
     translate([90, 30, plate_h - 0.5])
