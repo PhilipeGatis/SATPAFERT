@@ -45,8 +45,8 @@ mosfet_d = 52;
 lm2596_w = 65.7;
 lm2596_d = 35.7;
 
-ssr_w = 25;
-ssr_d = 34;
+ssr_w = 25.1;
+ssr_d = 34.1;
 
 rtc_w = 38;
 rtc_d = 21.7;
@@ -60,7 +60,7 @@ tft_mount_holes_spacing_w = 51.5;
 tft_mount_holes_spacing_h = 28;
 tft_mount_d = 2.2;
 
-ultra_w = 41;
+ultra_w = 41.5;
 ultra_d = 28.5;
 
 // ============================================================
@@ -211,10 +211,20 @@ module base_2d_bottom() {
           translate([sx * 30.7 / 2, sy * 60 / 2])
             circle(d=2.5, $fn=20);
     }
-    translate([90, 65])
-      standoff_holes_2d(ultra_d, ultra_w); // girado 90°
-    translate([90, 30])
-      standoff_holes_2d(ssr_d, ssr_w);
+    translate([90, 65]) {
+      // ULTRA: furos 36mm × 23.5mm, girado 90° (23.5mm em X, 36mm em Y)
+      for (sx = [-1, 1])
+        for (sy = [-1, 1])
+          translate([sx * 23.5 / 2, sy * 36 / 2])
+            circle(d=2.5, $fn=20);
+    }
+    translate([92, 28]) {
+      // SSR: furos com espaçamento 29mm × 19.5mm
+      for (sx = [-1, 1])
+        for (sy = [-1, 1])
+          translate([sx * 29 / 2, sy * 19.5 / 2])
+            circle(d=2.5, $fn=20);
+    }
     translate([40, 8]) {
       // RTC DS3231: 3 furos (sem o canto superior-esquerdo, onde fica o conector)
       inset = 2.5;
@@ -270,7 +280,7 @@ module base_2d_bottom() {
       text("LM2596", size=label_size, halign="center", valign="center", font=label_font);
     translate([90, 65])
       text("ULTRA", size=label_size, halign="center", valign="center", font=label_font);
-    translate([90, 30])
+    translate([92, 28])
       text("SSR", size=label_size, halign="center", valign="center", font=label_font);
     translate([40, 8])
       text("RTC", size=label_size, halign="center", valign="center", font=label_font);

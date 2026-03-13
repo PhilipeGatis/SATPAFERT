@@ -57,8 +57,8 @@ lm2596_d = 35.7;
 
 // -- Módulo Relé SSR 1CH (dimensões reais) --
 // 25mm(L) x 34mm(C) x 21mm(A)
-ssr_w = 25;
-ssr_d = 34;
+ssr_w = 25.1;
+ssr_d = 34.1;
 
 // -- DS3231 RTC --
 // 38 x 21.7mm, 3 furos
@@ -78,7 +78,7 @@ tft_mount_d = 2.2; // mm - M2
 
 // -- Módulo Sensor Ultrassônico --
 // 41 x 28.5mm
-ultra_w = 41;
+ultra_w = 41.5;
 ultra_d = 28.5;
 
 // ============================================================
