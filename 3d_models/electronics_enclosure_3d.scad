@@ -41,8 +41,8 @@ psu_d = 97.4;
 psu_h = 42;
 
 // -- ESP32 MRD068A (terminal adapter) --
-// 63 x 69mm, furos: 58 x 64.5mm
-esp32_w = 63;
+// 63.5 x 69mm, furos: 58.5 x 64.5mm
+esp32_w = 63.5;
 esp32_d = 69;
 
 // -- Módulo MOSFET 8 canais (dimensões reais) --
@@ -61,8 +61,8 @@ ssr_w = 25.1;
 ssr_d = 34.1;
 
 // -- DS3231 RTC --
-// 38 x 21.7mm, 3 furos
-rtc_w = 38;
+// 30.5 x 21.7mm, furos: 25.5 x 16.7mm, 3 furos
+rtc_w = 30.5;
 rtc_d = 21.7;
 
 // -- TFT ST7735 1.8" 160x128 (dimensões reais) --
@@ -411,11 +411,11 @@ module base() {
             module_standoffs(ultra_d, ultra_w, h=6);
 
         color("Orange")
-          translate([90, 30, wall - 0.5])
-            module_standoffs(ssr_d, ssr_w, h=6);
+          translate([90, 17.55, wall - 0.5])
+            module_standoffs(ssr_w, ssr_d, h=6);
 
         color("Purple")
-          translate([40, 8, wall - 0.5])
+          translate([40, 11.35, wall - 0.5])
             module_standoffs(rtc_w, rtc_d, h=6);
       }
 
@@ -487,7 +487,7 @@ module module_area_labels() {
         );
 
   color("White")
-    translate([40, 8, wall])
+    translate([40, 11.35, wall])
       linear_extrude(label_h)
         text(
           "RTC", size=3, halign="center", valign="center",
@@ -511,7 +511,7 @@ module module_area_labels() {
         );
 
   color("White")
-    translate([90, 30, wall])
+    translate([90, 17.55, wall])
       linear_extrude(label_h)
         text(
           "SSR", size=4, halign="center", valign="center",
@@ -560,11 +560,11 @@ module ghost_components() {
       cube([ultra_d, ultra_w, 8]);
 
   color("Orange", 0.3)
-    translate([90 - ssr_d / 2, 30 - ssr_w / 2, wall + 6])
-      cube([ssr_d, ssr_w, 12]);
+    translate([90 - ssr_w / 2, 17.55 - ssr_d / 2, wall + 6])
+      cube([ssr_w, ssr_d, 12]);
 
   color("Purple", 0.3)
-    translate([40 - rtc_w / 2, 8 - rtc_d / 2, wall + 6])
+    translate([40 - rtc_w / 2, 11.35 - rtc_d / 2, wall + 6])
       cube([rtc_w, rtc_d, 5]);
 
   color("Cyan", 0.3)
@@ -599,11 +599,11 @@ module test_plate() {
       module_standoffs(ultra_d, ultra_w, h=6);
 
   color("Orange")
-    translate([90, 30, plate_h - 0.5])
-      module_standoffs(ssr_d, ssr_w, h=6);
+    translate([90, 17.55, plate_h - 0.5])
+      module_standoffs(ssr_w, ssr_d, h=6);
 
   color("Purple")
-    translate([40, 8, plate_h - 0.5])
+    translate([40, 11.35, plate_h - 0.5])
       module_standoffs(rtc_w, rtc_d, h=6);
 
   module_area_labels();

@@ -36,7 +36,7 @@ psu_w = 165;
 psu_d = 97.4;
 psu_h = 42;
 
-esp32_w = 63;  // MRD068A terminal adapter
+esp32_w = 63.5;  // MRD068A terminal adapter
 esp32_d = 69;
 
 mosfet_w = 99;
@@ -48,7 +48,7 @@ lm2596_d = 35.7;
 ssr_w = 25.1;
 ssr_d = 34.1;
 
-rtc_w = 38;
+rtc_w = 30.5;
 rtc_d = 21.7;
 
 tft_screen_w = 38.5;
@@ -198,10 +198,10 @@ module base_2d_bottom() {
             circle(d=2.5, $fn=20);
     }
     translate([40, 65]) {
-      // ESP32 MRD068A: furos com espaçamento 58mm × 64.5mm
+      // ESP32 MRD068A: furos com espaçamento 58.5mm × 64.5mm
       for (sx = [-1, 1])
         for (sy = [-1, 1])
-          translate([sx * 58 / 2, sy * 64.5 / 2])
+          translate([sx * 58.5 / 2, sy * 64.5 / 2])
             circle(d=2.5, $fn=20);
     }
     translate([-20, 33]) {
@@ -218,14 +218,14 @@ module base_2d_bottom() {
           translate([sx * 23.5 / 2, sy * 36 / 2])
             circle(d=2.5, $fn=20);
     }
-    translate([92, 28]) {
-      // SSR: furos com espaçamento 29mm × 19.5mm
+    translate([92, 17.5]) {
+      // SSR: furos com espaçamento 19.5mm × 29mm (girado 90°)
       for (sx = [-1, 1])
         for (sy = [-1, 1])
-          translate([sx * 29 / 2, sy * 19.5 / 2])
+          translate([sx * 19.5 / 2, sy * 29 / 2])
             circle(d=2.5, $fn=20);
     }
-    translate([40, 8]) {
+    translate([40, 11.35]) {
       // RTC DS3231: 3 furos (sem o canto superior-esquerdo, onde fica o conector)
       inset = 2.5;
       translate([-rtc_w / 2 + inset, -rtc_d / 2 + inset]) circle(d=2.5, $fn=20); // inf-esq
@@ -280,9 +280,9 @@ module base_2d_bottom() {
       text("LM2596", size=label_size, halign="center", valign="center", font=label_font);
     translate([90, 65])
       text("ULTRA", size=label_size, halign="center", valign="center", font=label_font);
-    translate([92, 28])
+    translate([92, 17.5])
       text("SSR", size=label_size, halign="center", valign="center", font=label_font);
-    translate([40, 8])
+    translate([40, 11.35])
       text("RTC", size=label_size, halign="center", valign="center", font=label_font);
     // Barramento de capacitores (em cima do LM2596)
     translate([-20, 68])
