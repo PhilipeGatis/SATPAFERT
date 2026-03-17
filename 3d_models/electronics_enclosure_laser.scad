@@ -129,7 +129,7 @@ module fj_edge(edge_len, teeth = "tabs") {
 // --- Furos de standoff para módulos (2D) ---
 module standoff_holes_2d(w, d, hole_d = 2.5) {
   inset = 2.5;
-  if (w < 35) {
+  if (w < 20) {
     positions = [
       [-w / 2 + inset, -d / 2 + inset],
       [w / 2 - inset, d / 2 - inset],
@@ -226,11 +226,12 @@ module base_2d_bottom() {
             circle(d=2.5, $fn=20);
     }
     translate([40, 11.35]) {
-      // RTC DS3231: 3 furos (sem o canto superior-esquerdo, onde fica o conector)
+      // RTC DS3231: 4 furos simétricos (25.5 × 16.7mm)
       inset = 2.5;
-      translate([-rtc_w / 2 + inset, -rtc_d / 2 + inset]) circle(d=2.5, $fn=20); // inf-esq
-      translate([rtc_w / 2 - inset, -rtc_d / 2 + inset]) circle(d=2.5, $fn=20);  // inf-dir
-      translate([rtc_w / 2 - inset, rtc_d / 2 - inset]) circle(d=2.5, $fn=20);   // sup-dir
+      for (sx = [-1, 1])
+        for (sy = [-1, 1])
+          translate([sx * (rtc_w / 2 - inset), sy * (rtc_d / 2 - inset)])
+            circle(d=2.5, $fn=20);
     }
 
     // --- Ventilação no fundo (sob a fonte) ---
@@ -636,13 +637,32 @@ module all_2d() {
   translate([col2_x, -box_depth / 2 - spacing - panel_h - spacing - panel_h / 2])
     base_2d_right();
 
-  // --- Cantoneiras de apoio (4 peças, abaixo dos painéis) ---
-  strip_row_y = -box_depth / 2 - spacing - panel_h - spacing - panel_h - spacing;
-  cs_spacing = corner_support_size + spacing;
+  // --- Cantoneiras de apoio (4 peças) dentro dos recortes dos painéis ---
+  // Posições calculadas para caber nos recortes existentes (waste space)
+  cs = corner_support_size; // 15mm
 
-  for (i = [0:3])
-    translate([col2_x - 1.5 * cs_spacing + i * cs_spacing, strip_row_y - corner_support_size / 2])
-      corner_support_2d();
+  // Recorte do painel direito (right panel) no layout all_2d
+  right_panel_y = -box_depth / 2 - spacing - panel_h - spacing - panel_h / 2;
+
+  // Canister cutout (40.5 × 21.7mm) — cabem 2 peças lado a lado
+  can_x_panel = 25; // centro do recorte canister no painel
+  can_z_panel = base_height / 2 + 2 - mat_t - panel_h / 2;
+  translate([col2_x + can_x_panel - cs/2 - 1, right_panel_y + can_z_panel])
+    corner_support_2d();
+  translate([col2_x + can_x_panel + cs/2 + 1, right_panel_y + can_z_panel])
+    corner_support_2d();
+
+  // AC IN cutout (27.2 × 31.2mm) — cabe 1 peça
+  ac_x_panel = box_depth / 4 + 25;
+  ac_z_panel = base_height / 2 + 2 - mat_t - panel_h / 2;
+  translate([col2_x + ac_x_panel, right_panel_y + ac_z_panel])
+    corner_support_2d();
+
+  // TFT display cutout na tampa (38.5 × 32mm) — cabe 1 peça
+  tft_x_lid = 40 + tft_screen_offset_x;
+  tft_y_lid = 45;
+  translate([col2_x + tft_x_lid, tft_y_lid])
+    corner_support_2d();
 }
 
 // ============================================================

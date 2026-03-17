@@ -153,8 +153,8 @@ module standoff(h = 6, outer_d = 4, inner_d = 2.2) {
 // --- Grid de standoffs para um módulo ---
 module module_standoffs(w, d, h = 6) {
   inset = 2.5;
-  if (w < 35) {
-    // Módulos pequenos: apenas 2 standoffs diagonais
+  if (w < 20) {
+    // Módulos muito pequenos: apenas 2 standoffs diagonais
     positions = [
       [-w / 2 + inset, -d / 2 + inset],
       [w / 2 - inset, d / 2 - inset],
