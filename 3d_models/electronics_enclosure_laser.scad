@@ -175,9 +175,7 @@ module corner_support_2d() {
     // Furo ímã
     circle(d=magnet_d, $fn=30);
   }
-  color(label_color)
-    translate([0, magnet_d / 2 + 3])
-      text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
+
 }
 
 // Posições dos ímãs nos cantos (relativo ao centro da caixa)
@@ -517,8 +515,7 @@ module base_2d_right() {
       text("AC IN", size=label_size - 1, halign="center", valign="center", font=label_font);
     translate([can_x, can_z - panel_h / 2 + canister_outlet_h / 2 + 5])
       text("CANISTER", size=label_size - 1, halign="center", valign="center", font=label_font);
-    translate([btn_x_r, btn_z - panel_h / 2 + btn_panel_d / 2 + 5])
-      text("BTN", size=label_size - 1, halign="center", valign="center", font=label_font);
+
   }
 }
 
@@ -611,8 +608,7 @@ module lid_back_2d() {
 
   // Legendas
   color(label_color) {
-    translate([tft_x_offset, tft_local_y - tft_screen_h / 2 - 5])
-      text("TFT", size=label_size - 1, halign="center", valign="center", font=label_font);
+
     // Centro da área esquerda (entre borda esquerda e TFT)
     left_area_cx = (-lid_w / 2 + tft_x_offset - tft_cutout_w / 2) / 2;
     // IARA em cima
@@ -651,13 +647,7 @@ module mid_support_2d() {
       circle(d=magnet_d, $fn=30);
   }
 
-  // Legendas
-  color(label_color) {
-    translate([0, cs / 2 + magnet_d / 2 + 3])
-      text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
-    translate([0, -cs / 2 + magnet_d / 2 + 3])
-      text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
-  }
+
 }
 
 // ============================================================
@@ -837,8 +827,7 @@ module all_2d_engravings() {
   translate([col2_x, half_d / 2 + spacing / 2]) {
     tft_x_offset = 40;
     tft_local_y = 45 - half_d / 2;
-    translate([tft_x_offset, tft_local_y - tft_screen_h / 2 - 5])
-      text("TFT", size=label_size - 1, halign="center", valign="center", font=label_font);
+
     left_area_cx = (-lid_w / 2 + tft_x_offset - tft_cutout_w / 2) / 2;
     translate([left_area_cx, tft_local_y + 25])
       text("IARA", size=label_size + 2, halign="center", valign="center", font=label_font);
@@ -874,21 +863,10 @@ module all_2d_engravings() {
       text("AC IN", size=label_size - 1, halign="center", valign="center", font=label_font);
     translate([can_x, can_z - panel_h / 2 + canister_outlet_h / 2 + 5])
       text("CANISTER", size=label_size - 1, halign="center", valign="center", font=label_font);
-    translate([btn_x_r, btn_z - panel_h / 2 + btn_panel_d / 2 + 5])
-      text("BTN", size=label_size - 1, halign="center", valign="center", font=label_font);
+
   }
 
-  // Mid-support MAG labels
-  gap_x = box_width / 2 + mount_tab_h + spacing / 2;
-  panels_y = -half_d - spacing - spacing / 2 - panel_h;
-  cs = corner_support_size;
-  for (dy = [-20, 20])
-    translate([gap_x, panels_y + dy]) {
-      translate([0, cs / 2 + magnet_d / 2 + 3])
-        text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
-      translate([0, -cs / 2 + magnet_d / 2 + 3])
-        text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
-    }
+
 }
 
 // ============================================================
@@ -899,7 +877,7 @@ module all_2d_engravings() {
 // base_2d_bottom();       // Somente o fundo
 // lid_front_2d();         // Metade frontal da tampa
 // lid_back_2d();          // Metade traseira da tampa
-all_2d();              // Base + tampas + suportes (CORTE)
+ all_2d();              // Base + tampas + suportes (CORTE)
 // all_2d_engravings();   // Somente gravações (textos + logo SVG)
 
 // ============================================================
