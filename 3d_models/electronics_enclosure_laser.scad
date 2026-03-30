@@ -809,10 +809,11 @@ module all_2d_engravings() {
 
   // Frontal — legendas dos sensores
   translate([col1_x, -box_depth / 2 - spacing - panel_h / 2]) {
+    gx12_sp = gx12_d + 10; // mesmo que gx12_spacing em base_2d_front
+    sensor_z_2d = psu_h - 4;
     sensor_labels = ["ULTRA", "CAP", "BOIA"];
     for (i = [0:gx12_qty - 1]) {
-      x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
-      sensor_z_2d = base_height / 2 + 2 - mat_t;
+      x_offset = -(gx12_qty - 1) * gx12_sp / 2 + i * gx12_sp;
       translate([x_offset, sensor_z_2d - panel_h / 2 + gx12_d / 2 + 4])
         text(sensor_labels[i], size=label_size - 1, halign="center", valign="center", font=label_font);
     }
@@ -877,8 +878,9 @@ module all_2d_engravings() {
 // base_2d_bottom();       // Somente o fundo
 // lid_front_2d();         // Metade frontal da tampa
 // lid_back_2d();          // Metade traseira da tampa
- all_2d();              // Base + tampas + suportes (CORTE)
-// all_2d_engravings();   // Somente gravações (textos + logo SVG)
+all_2d();              // Base + tampas + suportes (CORTE)
+all_2d_engravings();   // Gravações sobrepostas para verificação
+// Quando for exportar DXF de gravação, comente all_2d() e descomente só all_2d_engravings()
 
 // ============================================================
 // NOTAS DE FABRICAÇÃO
