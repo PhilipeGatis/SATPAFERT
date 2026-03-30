@@ -75,6 +75,8 @@ tft_board_h = 34.4; // mm - PCB altura
 tft_mount_holes_spacing_w = 51.5; // mm
 tft_mount_holes_spacing_h = 28; // mm
 tft_mount_d = 2.2; // mm - M2
+tft_cutout_w = 46.5; // mm - largura da abertura de encaixe na tampa
+tft_cutout_h = 34.5; // mm - altura da abertura de encaixe na tampa
 
 // -- Módulo Sensor Ultrassônico --
 // 41 x 28.5mm
@@ -96,12 +98,15 @@ canister_outlet_w = 40.5; // mm - largura do rasgo retangular
 canister_outlet_h = 21.7; // mm - altura do rasgo retangular
 
 // -- Conectores DC para bombas (8x) --
-pump_conn_d = 8; // mm - diâmetro do furo de montagem (P4)
+pump_conn_d = 12.5; // mm - diâmetro do furo de montagem (igual GX12 + 0.5mm)
 pump_conn_qty = 8;
 
 // -- Conectores GX12 para sensores (aviation plug) --
 gx12_d = 12; // mm - diâmetro do furo de montagem
 gx12_qty = 3; // Ultrassônico, capacitivo, boia
+
+// -- Botão de painel (push button momentâneo 12mm) --
+btn_panel_d = 12; // mm - diâmetro do furo de montagem
 
 // -- Passagem de cabo (PG7 gland) --
 pg7_d = 12; // mm - diâmetro do furo
@@ -191,13 +196,14 @@ module vent_slots(qty, slot_w, slot_l, spacing) {
 module left_panel_cutouts() {
   cols = 2;
   rows = 4;
-  col_spacing = 25;
+  col_spacing = 22;
   row_spacing = pump_conn_d + 6;
-  start_z = wall + 10;
+  start_z = wall + 15;
+  pump_y_shift = -40; // mm - desloca furos para a esquerda
 
   for (col = [0:cols - 1])
     for (row = [0:rows - 1]) {
-      y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2;
+      y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2 + pump_y_shift;
       z_offset = start_z + col * col_spacing;
       translate([-box_width / 2 - 0.1, y_offset, z_offset])
         rotate([0, 90, 0])
@@ -209,15 +215,16 @@ module left_panel_cutouts() {
 module pump_labels() {
   cols = 2;
   rows = 4;
-  col_spacing = 25;
+  col_spacing = 22;
   row_spacing = pump_conn_d + 6;
-  start_z = wall + 10;
+  start_z = wall + 15;
+  pump_y_shift = -20;
   labels = ["SOL", "DREN", "PRIME", "RECALQ", "DOSE1", "DOSE2", "DOSE3", "DOSE4"];
 
   for (col = [0:cols - 1])
     for (row = [0:rows - 1]) {
       idx = col * rows + row;
-      y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2;
+      y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2 + pump_y_shift;
       z_offset = start_z + col * col_spacing;
       translate([-box_width / 2 - 0.1, y_offset, z_offset + pump_conn_d / 2 + 3])
         rotate([90, 0, -90])
@@ -275,21 +282,28 @@ module front_panel_labels() {
 module right_panel_cutouts() {
   panel_x = box_width / 2;
 
-  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 2])
+  // AC IN (27.2 x 31.2mm, rotacionado 90°) — espelhado à esquerda
+  translate([panel_x + 0.1, -(box_depth / 4 + 25), base_height / 2 + 2])
     rotate([0, -90, 0])
-      translate([-31.2 / 2, -27.2 / 2, 0])
-        cube([31.2, 27.2, wall + 0.2]);
+      translate([-27.2 / 2, -31.2 / 2, 0])
+        cube([27.2, 31.2, wall + 0.2]);
 
-  translate([panel_x + 0.1, 25, base_height / 2 + 2])
+  // CANISTER — espelhado
+  translate([panel_x + 0.1, -25, base_height / 2 + 2])
     rotate([0, -90, 0])
       translate([-canister_outlet_h / 2, -canister_outlet_w / 2, 0])
         cube([canister_outlet_h, canister_outlet_w, wall + 0.2]);
+
+  // BOTÃO — na posição antiga do AC IN
+  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 2])
+    rotate([0, -90, 0])
+      cylinder(d=btn_panel_d, h=wall + 0.2, $fn=40);
 }
 
 module sensor_labels() {
   panel_x = box_width / 2;
 
-  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + 21.7 / 2 + 11])
+  translate([panel_x + 0.1, -(box_depth / 4 + 25), base_height / 2 + 27.2 / 2 + 5])
     rotate([90, 0, 90])
       linear_extrude(0.6)
         text(
@@ -297,11 +311,19 @@ module sensor_labels() {
           font="Liberation Sans:style=Bold"
         );
 
-  translate([panel_x + 0.1, 25, base_height / 2 + canister_outlet_h / 2 + 6])
+  translate([panel_x + 0.1, -25, base_height / 2 + canister_outlet_h / 2 + 6])
     rotate([90, 0, 90])
       linear_extrude(0.6)
         text(
           "CANISTER", size=4, halign="center", valign="center",
+          font="Liberation Sans:style=Bold"
+        );
+
+  translate([panel_x + 0.1, box_depth / 4 + 25, base_height / 2 + btn_panel_d / 2 + 5])
+    rotate([90, 0, 90])
+      linear_extrude(0.6)
+        text(
+          "BTN", size=4, halign="center", valign="center",
           font="Liberation Sans:style=Bold"
         );
 }
@@ -324,12 +346,12 @@ module lid() {
 
         translate(
           [
-            tft_x_offset + tft_screen_offset_x - tft_screen_w / 2,
-            tft_y_offset - tft_screen_h / 2,
+            tft_x_offset - tft_cutout_w / 2,
+            tft_y_offset - tft_cutout_h / 2,
             -0.1,
           ]
         )
-          cube([tft_screen_w, tft_screen_h, acrylic_thickness + 0.2]);
+          cube([tft_cutout_w, tft_cutout_h, acrylic_thickness + 0.2]);
 
         for (dx = [-tft_mount_holes_spacing_w / 2, tft_mount_holes_spacing_w / 2])
           for (dy = [-tft_mount_holes_spacing_h / 2, tft_mount_holes_spacing_h / 2])
@@ -400,19 +422,19 @@ module base() {
 
         color("DarkGreen")
           translate([40, 65, wall - 0.5])
-            module_standoffs(esp32_w, esp32_d, h=6);
+            module_standoffs(esp32_d, esp32_w, h=6);
 
         color("DarkBlue")
           translate([-20, 33, wall - 0.5])
             module_standoffs(lm2596_d, lm2596_w, h=6);
 
         color("Teal")
-          translate([90, 65, wall - 0.5])
+          translate([105, 65, wall - 0.5])
             module_standoffs(ultra_d, ultra_w, h=6);
 
         color("Orange")
-          translate([90, 17.55, wall - 0.5])
-            module_standoffs(ssr_w, ssr_d, h=6);
+          translate([90, 11.35, wall - 0.5])
+            module_standoffs(ssr_d, ssr_w, h=6);
 
         color("Purple")
           translate([40, 11.35, wall - 0.5])
@@ -548,20 +570,20 @@ module ghost_components() {
       cube([mosfet_d, mosfet_w, 15]);
 
   color("DarkGreen", 0.3)
-    translate([40 - esp32_w / 2, 65 - esp32_d / 2, wall + 6])
-      cube([esp32_w, esp32_d, 8]);
+    translate([40 - esp32_d / 2, 65 - esp32_w / 2, wall + 6])
+      cube([esp32_d, esp32_w, 8]);
 
   color("DarkBlue", 0.3)
     translate([-20 - lm2596_d / 2, 33 - lm2596_w / 2, wall + 6])
       cube([lm2596_d, lm2596_w, 10]);
 
   color("Teal", 0.3)
-    translate([90 - ultra_d / 2, 65 - ultra_w / 2, wall + 6])
+    translate([105 - ultra_d / 2, 65 - ultra_w / 2, wall + 6])
       cube([ultra_d, ultra_w, 8]);
 
   color("Orange", 0.3)
-    translate([90 - ssr_w / 2, 17.55 - ssr_d / 2, wall + 6])
-      cube([ssr_w, ssr_d, 12]);
+    translate([90 - ssr_d / 2, 11.35 - ssr_w / 2, wall + 6])
+      cube([ssr_d, ssr_w, 12]);
 
   color("Purple", 0.3)
     translate([40 - rtc_w / 2, 11.35 - rtc_d / 2, wall + 6])
@@ -588,19 +610,19 @@ module test_plate() {
 
   color("DarkGreen")
     translate([40, 65, plate_h - 0.5])
-      module_standoffs(esp32_w, esp32_d, h=6);
+      module_standoffs(esp32_d, esp32_w, h=6);
 
   color("DarkBlue")
     translate([-20, 33, plate_h - 0.5])
       module_standoffs(lm2596_d, lm2596_w, h=6);
 
   color("Teal")
-    translate([90, 65, plate_h - 0.5])
+    translate([105, 65, plate_h - 0.5])
       module_standoffs(ultra_d, ultra_w, h=6);
 
   color("Orange")
-    translate([90, 17.55, plate_h - 0.5])
-      module_standoffs(ssr_w, ssr_d, h=6);
+    translate([90, 11.35, plate_h - 0.5])
+      module_standoffs(ssr_d, ssr_w, h=6);
 
   color("Purple")
     translate([40, 11.35, plate_h - 0.5])

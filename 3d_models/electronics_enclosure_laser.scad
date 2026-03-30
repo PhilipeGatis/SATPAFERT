@@ -26,6 +26,7 @@ corner_r = 5; // mm - raio dos cantos arredondados
 // -- Tampa de acrílico --
 acrylic_thickness = 3; // mm
 acrylic_tolerance = 0.5; // mm - folga para encaixe
+lid_offset = 3; // mm - offset/recuo da tampa em relação à parede
 
 
 // ============================================================
@@ -56,6 +57,8 @@ tft_screen_h = 32;
 tft_screen_offset_x = -2.25; // mm - tela deslocada do centro da placa (7.5mm / 12mm das bordas)
 tft_board_w = 58;
 tft_board_h = 34.4;
+tft_cutout_w = 46.5; // mm - largura da abertura de encaixe na tampa
+tft_cutout_h = 34.5; // mm - altura da abertura de encaixe na tampa
 tft_mount_holes_spacing_w = 51.5;
 tft_mount_holes_spacing_h = 28;
 tft_mount_d = 2.2;
@@ -69,7 +72,7 @@ ultra_d = 28.5;
 
 canister_outlet_w = 40.5; // mm - largura do rasgo retangular
 canister_outlet_h = 21.7; // mm - altura do rasgo retangular
-pump_conn_d = 8;
+pump_conn_d = 12.5;
 pump_conn_qty = 8;
 
 gx12_d = 12; // mm - diâmetro do furo de montagem GX12
@@ -151,10 +154,25 @@ module standoff_holes_2d(w, d, hole_d = 2.5) {
 }
 
 // --- Peça de canto para apoio da tampa (2D) ---
+// Corpo 15×15mm + abas em L em 2 lados que encaixam nos rasgos dos painéis
+// Aba: mat_t (3mm) de altura × 1.5mm de profundidade
 module corner_support_2d() {
-  cs = corner_support_size;
+  cs = corner_support_size; // 15mm
+  tab_h = mat_t;  // 3mm - altura da aba (= espessura do painel/rasgo)
+  tab_d = 1.5;    // 1.5mm - profundidade da aba (quanto sai para fora)
+
   difference() {
-    square([cs, cs], center=true);
+    union() {
+      // Corpo principal
+      square([cs, cs], center=true);
+      // Aba lado direito (+X) — da metade até o topo
+      translate([cs / 2, 0])
+        square([tab_d, cs / 2]);
+      // Aba lado superior (+Y) — da metade até encontrar a aba direita
+      translate([0, cs / 2])
+        square([cs / 2 + tab_d, tab_d]);
+    }
+    // Furo ímã
     circle(d=magnet_d, $fn=30);
   }
   color(label_color)
@@ -198,10 +216,10 @@ module base_2d_bottom() {
             circle(d=2.5, $fn=20);
     }
     translate([40, 65]) {
-      // ESP32 MRD068A: furos com espaçamento 58.5mm × 64.5mm
+      // ESP32 MRD068A: furos com espaçamento 64.5mm × 58.5mm (girado 90°)
       for (sx = [-1, 1])
         for (sy = [-1, 1])
-          translate([sx * 58.5 / 2, sy * 64.5 / 2])
+          translate([sx * 64.5 / 2, sy * 58.5 / 2])
             circle(d=2.5, $fn=20);
     }
     translate([-20, 33]) {
@@ -211,18 +229,18 @@ module base_2d_bottom() {
           translate([sx * 30.7 / 2, sy * 60 / 2])
             circle(d=2.5, $fn=20);
     }
-    translate([90, 65]) {
+    translate([105, 65]) {
       // ULTRA: furos 36mm × 23.5mm, girado 90° (23.5mm em X, 36mm em Y)
       for (sx = [-1, 1])
         for (sy = [-1, 1])
           translate([sx * 23.5 / 2, sy * 36 / 2])
             circle(d=2.5, $fn=20);
     }
-    translate([92, 17.5]) {
-      // SSR: furos com espaçamento 19.5mm × 29mm (girado 90°)
+    translate([90, 11.35]) {
+      // SSR: furos com espaçamento 29mm × 19.5mm (girado 90°)
       for (sx = [-1, 1])
         for (sy = [-1, 1])
-          translate([sx * 19.5 / 2, sy * 29 / 2])
+          translate([sx * 29 / 2, sy * 19.5 / 2])
             circle(d=2.5, $fn=20);
     }
     translate([40, 11.35]) {
@@ -279,9 +297,9 @@ module base_2d_bottom() {
       text("ESP32", size=label_size, halign="center", valign="center", font=label_font);
     translate([-20, 33])
       text("LM2596", size=label_size, halign="center", valign="center", font=label_font);
-    translate([90, 65])
+    translate([105, 65])
       text("ULTRA", size=label_size, halign="center", valign="center", font=label_font);
-    translate([92, 17.5])
+    translate([90, 11.35])
       text("SSR", size=label_size, halign="center", valign="center", font=label_font);
     translate([40, 11.35])
       text("RTC", size=label_size, halign="center", valign="center", font=label_font);
@@ -328,15 +346,17 @@ module base_2d_front() {
     for (sx = [-1, 1])
       translate([sx * (panel_w / 2 - mat_t) - corner_support_size / 2, corner_slot_y - mat_t / 2])
         square([corner_support_size, mat_t]);
+
   }
 
   // --- Legendas dos sensores (gravação) ---
-  color(label_color)
+  color(label_color) {
     for (i = [0:gx12_qty - 1]) {
       x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
       translate([x_offset, sensor_z_2d - panel_h / 2 + gx12_d / 2 + 4])
         text(sensor_labels[i], size=label_size - 1, halign="center", valign="center", font=label_font);
     }
+  }
 }
 
 // ============================================================
@@ -372,6 +392,7 @@ module base_2d_back() {
     for (sx = [-1, 1])
       translate([sx * (panel_w / 2 - mat_t) - corner_support_size / 2, corner_slot_y - mat_t / 2])
         square([corner_support_size, mat_t]);
+
   }
 }
 
@@ -384,9 +405,10 @@ module base_2d_left() {
 
   cols = 2;
   rows = 4;
-  col_spacing = 25;
+  col_spacing = 22;
   row_spacing = pump_conn_d + 6;
-  start_z = 10;
+  start_z = 15;
+  pump_y_shift = -40;
 
   difference() {
     square([panel_w, panel_h], center=true);
@@ -406,7 +428,7 @@ module base_2d_left() {
     // --- Furos 8x bombas P4 ---
     for (col = [0:cols - 1])
       for (row = [0:rows - 1]) {
-        y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2;
+        y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2 + pump_y_shift;
         z_offset = start_z + col * col_spacing;
         translate([y_offset, z_offset - panel_h / 2])
           circle(d=pump_conn_d, $fn=30);
@@ -416,6 +438,12 @@ module base_2d_left() {
     for (sx = [-1, 1])
       translate([sx * (panel_w / 2 - mat_t) - corner_support_size / 2, corner_slot_y - mat_t / 2])
         square([corner_support_size, mat_t]);
+
+    // --- Rasgos finger joint para apoio central da tampa ---
+    mid_fj_seg = corner_support_size * 2 / 5; // 6mm
+    for (i = [0, 2, 4])
+      translate([-corner_support_size + i * mid_fj_seg, corner_slot_y - mat_t / 2])
+        square([mid_fj_seg, mat_t]);
   }
 
   // --- Legendas dos canais (gravação) ---
@@ -423,7 +451,7 @@ module base_2d_left() {
     for (col = [0:cols - 1])
       for (row = [0:rows - 1]) {
         ch_num = col * rows + row + 1;
-        y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2;
+        y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2 + pump_y_shift;
         z_offset = start_z + col * col_spacing;
         translate([y_offset, z_offset - panel_h / 2 + pump_conn_d / 2 + 3])
           text(str("CH", ch_num), size=label_size - 1, halign="center", valign="center", font=label_font);
@@ -437,10 +465,12 @@ module base_2d_right() {
   panel_w = box_depth;
   panel_h = base_height - mat_t;
 
-  ac_x = box_depth / 4 + 25;
+  ac_x = -(box_depth / 4 + 25); // espelhado: -80
   ac_z = base_height / 2 + 2 - mat_t;
-  can_x = 25;
+  can_x = -25; // espelhado
   can_z = base_height / 2 + 2 - mat_t;
+  btn_x_r = box_depth / 4 + 25; // posição antiga do AC IN
+  btn_z = ac_z;
 
   difference() {
     square([panel_w, panel_h], center=true);
@@ -457,9 +487,9 @@ module base_2d_right() {
       rotate([0, 0, 90])
         fj_edge(panel_h, "slots");
 
-    // --- Tomada AC AS-08A (31.2 x 27.2mm) ---
-    translate([ac_x - 27.2 / 2, ac_z - panel_h / 2 - 31.2 / 2])
-      square([27.2, 31.2]);
+    // --- Tomada AC AS-08A (31.2 x 27.2mm, rotacionada 90°) ---
+    translate([ac_x - 31.2 / 2, ac_z - panel_h / 2 - 27.2 / 2])
+      square([31.2, 27.2]);
 
     // --- Tomada Canister Margirius snap-in (40.5 x 21.7mm) ---
     translate([can_x - canister_outlet_w / 2, can_z - panel_h / 2 - canister_outlet_h / 2])
@@ -469,87 +499,164 @@ module base_2d_right() {
     for (sx = [-1, 1])
       translate([sx * (panel_w / 2 - mat_t) - corner_support_size / 2, corner_slot_y - mat_t / 2])
         square([corner_support_size, mat_t]);
+
+    // --- Rasgos finger joint para apoio central da tampa ---
+    mid_fj_seg = corner_support_size * 2 / 5; // 6mm
+    for (i = [0, 2, 4])
+      translate([-corner_support_size + i * mid_fj_seg, corner_slot_y - mat_t / 2])
+        square([mid_fj_seg, mat_t]);
+
+    // --- Furo botão de painel (12mm) ---
+    translate([btn_x_r, btn_z - panel_h / 2])
+      circle(d=btn_panel_d, $fn=40);
   }
 
   // --- Legendas dos conectores (gravação) ---
   color(label_color) {
-    translate([ac_x, ac_z - panel_h / 2 + 31.2 / 2 + 5])
+    translate([ac_x, ac_z - panel_h / 2 + 27.2 / 2 + 5])
       text("AC IN", size=label_size - 1, halign="center", valign="center", font=label_font);
     translate([can_x, can_z - panel_h / 2 + canister_outlet_h / 2 + 5])
       text("CANISTER", size=label_size - 1, halign="center", valign="center", font=label_font);
+    translate([btn_x_r, btn_z - panel_h / 2 + btn_panel_d / 2 + 5])
+      text("BTN", size=label_size - 1, halign="center", valign="center", font=label_font);
   }
 }
 
-// ============================================================
-// TAMPA 2D (lid_2d) — Template para corte laser
-// ============================================================
-module lid_2d() {
-  tft_x_offset = 40;
-  tft_y_offset = 45;
-  btn_x = tft_x_offset + tft_screen_w / 2 + 15;
-  btn_y = tft_y_offset;
 
-  // Posições dos ímãs na tampa (correspondem às cantoneiras)
+
+// ============================================================
+// TAMPA 2D — Dividida em 2 metades (frente/trás) — corte horizontal
+// ============================================================
+
+// Posição do ímã central (na linha de divisão, nos painéis laterais)
+mid_mag_x = corner_mag_x; // mesma posição X dos cantos
+
+// --- Metade FRONTAL da tampa (com puxador + ventilação) ---
+module lid_front_2d() {
+  lid_w = box_width - 2 * lid_offset - acrylic_tolerance;
+  lid_d_full = box_depth - 2 * lid_offset - acrylic_tolerance;
+  half_d = lid_d_full / 2;
+
   lid_mag_x = corner_mag_x;
   lid_mag_y = corner_mag_y;
 
   difference() {
-    // Contorno retangular (cantos retos)
-    square([box_width - acrylic_tolerance, box_depth - acrylic_tolerance], center=true);
+    square([lid_w, half_d], center=true);
 
-    // Abertura TFT
-    translate([tft_x_offset + tft_screen_offset_x - tft_screen_w / 2, tft_y_offset - tft_screen_h / 2])
-      square([tft_screen_w, tft_screen_h]);
-
-    // Furos TFT M2
-    for (dx = [-tft_mount_holes_spacing_w / 2, tft_mount_holes_spacing_w / 2])
-      for (dy = [-tft_mount_holes_spacing_h / 2, tft_mount_holes_spacing_h / 2])
-        translate([tft_x_offset + dx, tft_y_offset + dy])
-          circle(d=tft_mount_d);
-
-    // Furo botão de painel (12mm) — ao lado do TFT
-    translate([btn_x, btn_y])
-      circle(d=btn_panel_d, $fn=40);
-
-    // Ventilação
+    // Ventilação (ambos os lados)
     for (side = [1, -1]) {
       for (i = [0:vent_qty - 1]) {
         tw = vent_qty * vent_slot_w + (vent_qty - 1) * vent_spacing;
-        translate(
-          [
-            side * box_width / 4 - tw / 2 + i * (vent_slot_w + vent_spacing),
-            -box_depth / 4 + tft_board_h / 2 + 10 - vent_slot_l / 2,
-          ]
-        )
+        translate([
+          side * lid_w / 4 - tw / 2 + i * (vent_slot_w + vent_spacing),
+          half_d / 4 - vent_slot_l / 2,
+        ])
           square([vent_slot_w, vent_slot_l]);
       }
     }
 
-    // --- Furos para ímãs (4×, alinhados com as tiras frontal/traseira) ---
+    // Furos ímãs — 2 cantos frontais (borda -Y da tampa inteira)
     for (sx = [-1, 1])
-      for (sy = [-1, 1])
-        translate([sx * lid_mag_x, sy * lid_mag_y])
-          circle(d=magnet_d, $fn=30);
+      translate([sx * lid_mag_x, -lid_mag_y + half_d / 2])
+        circle(d=magnet_d, $fn=30);
 
-    // --- Puxador (semicírculo na borda frontal) ---
+    // Furos ímãs — 2 centrais (na emenda, borda +Y desta metade)
+    for (sx = [-1, 1])
+      translate([sx * mid_mag_x, half_d / 2 - corner_support_size / 2])
+        circle(d=magnet_d, $fn=30);
+
+    // Puxador (semicírculo na borda frontal)
     pull_r = 10;
-    translate([0, -(box_depth - acrylic_tolerance) / 2])
+    translate([0, -half_d / 2])
       circle(r=pull_r, $fn=40);
   }
+}
 
-  // --- Legendas da tampa (gravação) ---
-  color(label_color) {
-    translate([tft_x_offset, tft_y_offset - tft_screen_h / 2 - 5])
-      text("TFT", size=label_size - 1, halign="center", valign="center", font=label_font);
-    translate([btn_x, btn_y - btn_panel_d / 2 - 5])
-      text("BTN", size=label_size - 1, halign="center", valign="center", font=label_font);
-    translate([-(box_width - acrylic_tolerance) / 2 + 20, (box_depth - acrylic_tolerance) / 2 - 12])
-      text("IARA", size=label_size + 2, halign="center", valign="center", font=label_font);
-    // Legendas dos ímãs
+// --- Metade TRASEIRA da tampa (com TFT + IARA) ---
+module lid_back_2d() {
+  lid_w = box_width - 2 * lid_offset - acrylic_tolerance;
+  lid_d_full = box_depth - 2 * lid_offset - acrylic_tolerance;
+  half_d = lid_d_full / 2;
+
+  tft_x_offset = 40;
+  // TFT Y era 45 relativo ao centro da tampa inteira → ajustar para centro desta metade
+  tft_local_y = 45 - half_d / 2;
+
+  lid_mag_x = corner_mag_x;
+  lid_mag_y = corner_mag_y;
+
+  difference() {
+    square([lid_w, half_d], center=true);
+
+    // Abertura TFT
+    translate([tft_x_offset - tft_cutout_w / 2, tft_local_y - tft_cutout_h / 2])
+      square([tft_cutout_w, tft_cutout_h]);
+
+    // Furos TFT M2
+    for (dx = [-tft_mount_holes_spacing_w / 2, tft_mount_holes_spacing_w / 2])
+      for (dy = [-tft_mount_holes_spacing_h / 2, tft_mount_holes_spacing_h / 2])
+        translate([tft_x_offset + dx, tft_local_y + dy])
+          circle(d=tft_mount_d);
+
+    // Furos ímãs — 2 cantos traseiros (borda +Y da tampa inteira)
     for (sx = [-1, 1])
-      for (sy = [-1, 1])
-        translate([sx * lid_mag_x, sy * lid_mag_y + magnet_d / 2 + 3])
-          text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
+      translate([sx * lid_mag_x, lid_mag_y - half_d / 2])
+        circle(d=magnet_d, $fn=30);
+
+    // Furos ímãs — 2 centrais (na emenda, borda -Y desta metade)
+    for (sx = [-1, 1])
+      translate([sx * mid_mag_x, -half_d / 2 + corner_support_size / 2])
+        circle(d=magnet_d, $fn=30);
+  }
+
+  // Legendas
+  color(label_color) {
+    translate([tft_x_offset, tft_local_y - tft_screen_h / 2 - 5])
+      text("TFT", size=label_size - 1, halign="center", valign="center", font=label_font);
+    // Centro da área esquerda (entre borda esquerda e TFT)
+    left_area_cx = (-lid_w / 2 + tft_x_offset - tft_cutout_w / 2) / 2;
+    // IARA em cima
+    translate([left_area_cx, tft_local_y + 25])
+      text("IARA", size=label_size + 2, halign="center", valign="center", font=label_font);
+    // Logo SVG centralizado na área esquerda
+    translate([left_area_cx, tft_local_y])
+      scale([0.30, 0.30])
+        import("../docs/logo.svg", center=true);
+  }
+}
+
+// --- Peça de apoio central (entre as 2 metades da tampa) ---
+// 2 quadrados unidos formando um retângulo (15×30mm)
+// com abas em L nos dois lados e 2 furos de ímã
+module mid_support_2d() {
+  cs = corner_support_size; // 15mm
+  tab_d = 1.5;    // profundidade da aba
+
+  difference() {
+    union() {
+      // Corpo retangular (2 quadrados empilhados: 15×30mm)
+      square([cs, cs * 2], center=true);
+
+      // --- Finger joint lado direito (+X) — toda a altura (30mm) ---
+      // 3 tabs alternados de 5mm cada (tab-gap-tab-gap-tab)
+      fj_seg = cs * 2 / 5; // 6mm por segmento
+      for (i = [0, 2, 4])
+        translate([cs / 2, -cs + i * fj_seg])
+          square([mat_t, fj_seg]);
+    }
+    // 2 furos ímã (1 por metade da tampa)
+    translate([0, cs / 2])
+      circle(d=magnet_d, $fn=30);
+    translate([0, -cs / 2])
+      circle(d=magnet_d, $fn=30);
+  }
+
+  // Legendas
+  color(label_color) {
+    translate([0, cs / 2 + magnet_d / 2 + 3])
+      text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
+    translate([0, -cs / 2 + magnet_d / 2 + 3])
+      text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
   }
 }
 
@@ -622,47 +729,166 @@ module all_2d() {
   translate([col1_x, -box_depth / 2 - spacing - panel_h - spacing - panel_h / 2])
     base_2d_back();
 
-  // --- Coluna 2 (direita): Tampa + painéis menores (220mm) ---
-  col2_x = box_width / 2 + mount_tab_h + spacing + (box_width - acrylic_tolerance) / 2;
+  // --- Coluna 2 (direita): Tampas (2 metades) + painéis menores ---
+  lid_w = box_width - 2 * lid_offset - acrylic_tolerance;
+  half_d = (box_depth - 2 * lid_offset - acrylic_tolerance) / 2;
+  col2_x = box_width / 2 + mount_tab_h + spacing + lid_w / 2;
 
-  // Tampa (em cima, alinhada com o fundo)
-  translate([col2_x, 0])
-    lid_2d();
+  // Tampa traseira (em cima)
+  translate([col2_x, half_d / 2 + spacing / 2])
+    lid_back_2d();
 
-  // Esquerdo (abaixo da tampa)
-  translate([col2_x, -box_depth / 2 - spacing - panel_h / 2])
+  // Tampa frontal (embaixo da traseira)
+  translate([col2_x, -half_d / 2 - spacing / 2])
+    lid_front_2d();
+
+  // Esquerdo (abaixo das tampas)
+  translate([col2_x, -half_d - spacing - spacing / 2 - panel_h / 2])
     base_2d_left();
 
   // Direito (abaixo do esquerdo)
-  translate([col2_x, -box_depth / 2 - spacing - panel_h - spacing - panel_h / 2])
+  translate([col2_x, -half_d - spacing - spacing / 2 - panel_h - spacing - panel_h / 2])
     base_2d_right();
 
-  // --- Cantoneiras de apoio (4 peças) dentro dos recortes dos painéis ---
-  // Posições calculadas para caber nos recortes existentes (waste space)
-  cs = corner_support_size; // 15mm
+  // --- Cantoneiras de apoio (4 peças de canto + 2 centrais) ---
+  cs = corner_support_size;
 
   // Recorte do painel direito (right panel) no layout all_2d
-  right_panel_y = -box_depth / 2 - spacing - panel_h - spacing - panel_h / 2;
+  right_panel_y = -half_d - spacing - spacing / 2 - panel_h - spacing - panel_h / 2;
 
-  // Canister cutout (40.5 × 21.7mm) — cabem 2 peças lado a lado
-  can_x_panel = 25; // centro do recorte canister no painel
+  // Canister cutout — cabem 2 peças lado a lado
+  can_x_panel = -25;
   can_z_panel = base_height / 2 + 2 - mat_t - panel_h / 2;
   translate([col2_x + can_x_panel - cs/2 - 1, right_panel_y + can_z_panel])
     corner_support_2d();
   translate([col2_x + can_x_panel + cs/2 + 1, right_panel_y + can_z_panel])
     corner_support_2d();
 
-  // AC IN cutout (27.2 × 31.2mm) — cabe 1 peça
-  ac_x_panel = box_depth / 4 + 25;
+  // AC IN cutout — cabe 1 peça
+  ac_x_panel = -(box_depth / 4 + 25);
   ac_z_panel = base_height / 2 + 2 - mat_t - panel_h / 2;
   translate([col2_x + ac_x_panel, right_panel_y + ac_z_panel])
     corner_support_2d();
 
-  // TFT display cutout na tampa (38.5 × 32mm) — cabe 1 peça
-  tft_x_lid = 40 + tft_screen_offset_x;
-  tft_y_lid = 45;
-  translate([col2_x + tft_x_lid, tft_y_lid])
+  // TFT display cutout — cabe 1 peça
+  tft_x_lid = 40;
+  tft_y_lid = 45 - half_d / 2;
+  translate([col2_x + tft_x_lid, half_d / 2 + spacing / 2 + tft_y_lid])
     corner_support_2d();
+
+  // --- Apoios centrais (2 peças de 15×30mm para divisão da tampa) ---
+  // Na faixa entre a coluna 1 e a coluna 2, na altura das laterais
+  gap_x = box_width / 2 + mount_tab_h + spacing / 2;
+  panels_y = -half_d - spacing - spacing / 2 - panel_h;
+  translate([gap_x, panels_y - 20])
+    mid_support_2d();
+  translate([gap_x, panels_y + 20])
+    mid_support_2d();
+}
+
+// ============================================================
+// GRAVAÇÕES 2D — Somente textos e logo SVG (para DXF separado)
+// ============================================================
+module all_2d_engravings() {
+  spacing = 8;
+  panel_h = base_height - mat_t;
+  mount_tab_h = 15;
+
+  // --- Coluna 1 ---
+  col1_x = 0;
+
+  // Fundo — legendas dos módulos
+  translate([col1_x, 0]) {
+    translate([0, -box_depth / 2 + wall + 2 + psu_d / 2 + vent_slot_l / 2 + 5])
+      text("PSU", size=label_size, halign="center", valign="center", font=label_font);
+    translate([-70, 48])
+      text("MOSFET", size=label_size, halign="center", valign="center", font=label_font);
+    translate([40, 65])
+      text("ESP32", size=label_size, halign="center", valign="center", font=label_font);
+    translate([-20, 33])
+      text("LM2596", size=label_size, halign="center", valign="center", font=label_font);
+    translate([105, 65])
+      text("ULTRA", size=label_size, halign="center", valign="center", font=label_font);
+    translate([90, 11.35])
+      text("SSR", size=label_size, halign="center", valign="center", font=label_font);
+    translate([40, 11.35])
+      text("RTC", size=label_size, halign="center", valign="center", font=label_font);
+    translate([-20, 68])
+      text("4x CAP", size=label_size - 1, halign="center", valign="center", font=label_font);
+  }
+
+  // Frontal — legendas dos sensores
+  translate([col1_x, -box_depth / 2 - spacing - panel_h / 2]) {
+    sensor_labels = ["ULTRA", "CAP", "BOIA"];
+    for (i = [0:gx12_qty - 1]) {
+      x_offset = -(gx12_qty - 1) * gx12_spacing / 2 + i * gx12_spacing;
+      sensor_z_2d = base_height / 2 + 2 - mat_t;
+      translate([x_offset, sensor_z_2d - panel_h / 2 + gx12_d / 2 + 4])
+        text(sensor_labels[i], size=label_size - 1, halign="center", valign="center", font=label_font);
+    }
+  }
+
+  // --- Coluna 2 ---
+  lid_w = box_width - 2 * lid_offset - acrylic_tolerance;
+  half_d = (box_depth - 2 * lid_offset - acrylic_tolerance) / 2;
+  col2_x = box_width / 2 + mount_tab_h + spacing + lid_w / 2;
+
+  // Tampa traseira — TFT, IARA, Logo SVG
+  translate([col2_x, half_d / 2 + spacing / 2]) {
+    tft_x_offset = 40;
+    tft_local_y = 45 - half_d / 2;
+    translate([tft_x_offset, tft_local_y - tft_screen_h / 2 - 5])
+      text("TFT", size=label_size - 1, halign="center", valign="center", font=label_font);
+    left_area_cx = (-lid_w / 2 + tft_x_offset - tft_cutout_w / 2) / 2;
+    translate([left_area_cx, tft_local_y + 25])
+      text("IARA", size=label_size + 2, halign="center", valign="center", font=label_font);
+    translate([left_area_cx, tft_local_y])
+      scale([0.30, 0.30])
+        import("../docs/logo.svg", center=true);
+  }
+
+  // Esquerdo — legendas CH1-8
+  translate([col2_x, -half_d - spacing - spacing / 2 - panel_h / 2]) {
+    cols = 2; rows = 4;
+    col_spacing = 22; row_spacing = pump_conn_d + 6;
+    start_z = 15; pump_y_shift = -40;
+    for (col = [0:cols - 1])
+      for (row = [0:rows - 1]) {
+        ch_num = col * rows + row + 1;
+        y_offset = -pump_conn_qty / rows * row_spacing / 2 + row * row_spacing + row_spacing / 2 + pump_y_shift;
+        z_offset = start_z + col * col_spacing;
+        translate([y_offset, z_offset - panel_h / 2 + pump_conn_d / 2 + 3])
+          text(str("CH", ch_num), size=label_size - 1, halign="center", valign="center", font=label_font);
+      }
+  }
+
+  // Direito — legendas AC IN, CANISTER, BTN
+  translate([col2_x, -half_d - spacing - spacing / 2 - panel_h - spacing - panel_h / 2]) {
+    ac_x = -(box_depth / 4 + 25);
+    ac_z = base_height / 2 + 2 - mat_t;
+    can_x = -25;
+    can_z = ac_z;
+    btn_x_r = box_depth / 4 + 25;
+    btn_z = ac_z;
+    translate([ac_x, ac_z - panel_h / 2 + 27.2 / 2 + 5])
+      text("AC IN", size=label_size - 1, halign="center", valign="center", font=label_font);
+    translate([can_x, can_z - panel_h / 2 + canister_outlet_h / 2 + 5])
+      text("CANISTER", size=label_size - 1, halign="center", valign="center", font=label_font);
+    translate([btn_x_r, btn_z - panel_h / 2 + btn_panel_d / 2 + 5])
+      text("BTN", size=label_size - 1, halign="center", valign="center", font=label_font);
+  }
+
+  // Mid-support MAG labels
+  gap_x = box_width / 2 + mount_tab_h + spacing / 2;
+  panels_y = -half_d - spacing - spacing / 2 - panel_h;
+  cs = corner_support_size;
+  for (dy = [-20, 20])
+    translate([gap_x, panels_y + dy]) {
+      translate([0, cs / 2 + magnet_d / 2 + 3])
+        text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
+      translate([0, -cs / 2 + magnet_d / 2 + 3])
+        text("MAG", size=label_size - 2, halign="center", valign="center", font=label_font);
+    }
 }
 
 // ============================================================
@@ -670,10 +896,11 @@ module all_2d() {
 // ============================================================
 // Descomente a linha desejada e exporte como DXF/SVG:
 
-// base_2d();         // Painéis da base (5 peças compactas)
-// lid_2d();          // Somente a tampa
-all_2d();          // Base + tampa + tiras de apoio
-// base_2d_bottom();  // Somente o painel do fundo (250×220mm — cabe em A3)
+// base_2d_bottom();       // Somente o fundo
+// lid_front_2d();         // Metade frontal da tampa
+// lid_back_2d();          // Metade traseira da tampa
+all_2d();              // Base + tampas + suportes (CORTE)
+// all_2d_engravings();   // Somente gravações (textos + logo SVG)
 
 // ============================================================
 // NOTAS DE FABRICAÇÃO
