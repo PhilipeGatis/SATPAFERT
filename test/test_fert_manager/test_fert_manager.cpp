@@ -12,9 +12,8 @@ static FertManager createFM(uint8_t schedHour = 9, uint8_t schedMin = 0) {
   FertManager fm;
   fm.begin();
   for (uint8_t ch = 0; ch <= NUM_FERTS; ch++) {
-    fm.setScheduleTime(ch, schedHour, schedMin);
-    // Set a default dose for all days of the week
     for (uint8_t dow = 0; dow < 7; dow++) {
+      fm.setScheduleTime(ch, dow, schedHour, schedMin);
       fm.setDoseML(ch, dow, DEFAULT_DOSE_ML);
     }
   }
