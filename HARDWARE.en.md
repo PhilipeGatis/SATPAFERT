@@ -20,38 +20,35 @@ The system uses a **Defense in Depth** topology with noise filtering at the inpu
 
 ## ⚡ Layer 1: AC Input & Protection (Infrastructure)
 
-Responsible for filtering power line interference and protecting the PSU against inrush current surges at startup.
+The power input architecture focuses on simplicity and maximum electrical safety, delegating heavy filtering (like EMI filter and NTC/Inrush limits) to the professional circuits already built into the Switching Power Supply.
 
 ### Components
 
 | Component | Function |
 |---|---|
-| **AC Fuse** (3A to 5A) | Protection against hard short circuits |
-| **NTC 5D-11** | Inrush current limiter (in series with Live) |
-| **NDF 222M** (Y Capacitors) | EMI filter (Phase–Ground and Neutral–Ground) |
-| **SSR Relay Module 1CH** | Independent control for the Canister filter (AC) |
+| **AC Glass Fuse** (3A to 5A) | Mandatory item: Protection against hard short circuits and fire risks |
+| **SSR Relay Module 1CH** | Independent control via ESP32 for the Canister filter (AC) |
 
 ### Wiring Diagram
 
-```
+```text
 [ IEC C14 INLET ]
       │
-      ├─── [ GROUND PIN ] ──────────────────────┬───► [ PSU G Terminal ]
-      │         │                               │
-      │         ├───[ NDF 222M ]─── (to L)      │
-      │         └───[ NDF 222M ]─── (to N)      │
-      │                                         │
-      ├─── [ NEUTRAL PIN ] ─────────────────────┼───► [ PSU N Terminal ]
-      │                                         └───► [ Relay COMMON ]
+      ├─── [ GROUND PIN (Green) ] ────────┬───────► [ PSU GROUND (G) Terminal ]
+      │                                   │
+      │                                   └───────► [ Canister Outlet GROUND ]
+      │         
+      ├─── [ NEUTRAL PIN (Blue) ] ────────┬───────► [ PSU NEUTRAL (N) Terminal ]
+      │                                   │
+      │                                   └───────► [ Canister Outlet NEUTRAL ]
       │
-      └─── [ LIVE PIN ] ─── [ AC FUSE ] ──────┐
-                                               │
-              ┌────────────────────────────────┘
-              │                                │
-        [ NTC 5D-11 ]                   [ RELAY INPUT ]
-        (In series)                     (Live/NO pin)
-              │                                │
-        [ PSU L Terminal ]              [ CANISTER OUTLET ]
+      └─── [ LIVE PIN (Brown) ] ─── [ FUSE ] ─────┐
+                                                  │
+             ┌────────────────────────────────────┘
+             │                                  
+             ├───────────────────► [ PSU LIVE (L) Terminal ]
+             │
+             └───► [ SSR Relay Screw 1 ] ── SWITCH ──► [ SSR Relay Screw 2 ] ──► [ Canister Outlet LIVE ]
 ```
 
 ---
@@ -67,28 +64,29 @@ Responsible for converting power to logic levels and maintaining ESP32 stability
 | **180W Switching PSU** | Adjusted to 12.53V |
 | **T5AL250V Fuse** | Physical firewall for 8 pumps and sensors |
 | **LM2596** | Step-down adjusted to 5.1V (ESP32 power) |
-| **2× 470µF 16V** | In parallel at 12V MOSFET input |
-| **4× 1000µF 10V** | In parallel at 5V output (near ESP32) |
+| **1× 470µF 16V** | In parallel at 12V MOSFET input (Prevents voltage dips on pump startup) |
+| **4× 1000µF 10V** | In parallel at 5V output (Acts as a "UPS" for ESP32 to withstand line fluctuations and spikes) |
 
 ### Wiring Diagram
 
-```
+```text
 [ PSU 12.53V ]
    │              │
- (V+)           (V─) ─────────────────────────┐ (STAR GND)
-   │              │                            │
-[T5A FUSE]        │                            │
-   │              │                            │
-   ├──────────────┼────────────┐               │
-   │              │            │               │
-[LM2596 IN+]  [LM2596 IN─]  [MOSFET VIN]  [MOSFET GND]
-   │              │            │               │
-(Output 5.1V)     │      (2× 470µF 16V)       │
-   │              │            │               │
-[ESP32 VIN]   [ESP32 GND]     │               │
-   │              │      [ 8-CH MOSFET ]      │
-(4× 1000µF 10V)  │            │               │
-   │              └────────────┴───────────────┘
+ (V+)           (V─) ──────────────────────────────┐ (STAR GND)
+   │              │                                │
+[T5A FUSE]        │                                │
+   │              │                                │
+   ├──────────────┼────────────────┐               │
+   │              │                │               │
+[LM2596 IN+]  [LM2596 IN─]    [MOSFET VIN]   [MOSFET GND]
+   │              │                │               │
+(Output 5.1V)     │         (1× 470µF 16V)         │
+   │              │                │               │
+(4× 1000µF 10V)   │                │               │
+   │              │                │               │
+[ESP32 VIN]   [ESP32 GND]          │               │
+   │              │         [ 8-CH MOSFET ]        │
+   │              └────────────────┴───────────────┘
 ```
 
 > [!IMPORTANT]
@@ -187,7 +185,7 @@ Non-contact sensor that detects liquid presence through glass/tube walls. NPN op
 
 ## 🛠️ Safe Implementation Notes
 
-1. **Soldering Priority** — The NTC must be insulated with high-temperature heat-shrink tubing, as it heats up during operation.
+1. **AC Connections** — Insulate all 110V/220V solder joints and connections with heat-shrink tubing for maximum safety.
 
 2. **Capacitor Polarity** — Check the negative stripe on all electrolytics (especially the 1000µF 10V operating at 5.1V).
 

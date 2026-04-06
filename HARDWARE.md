@@ -20,38 +20,35 @@ O sistema utiliza uma topologia de **Defesa em Profundidade**, com filtragem de 
 
 ## ⚡ Camada 1: Entrada e Proteção AC (Infraestrutura)
 
-Responsável por filtrar interferências da rede elétrica e proteger a fonte contra surtos de inicialização (Inrush Current).
+A arquitetura da entrada de energia foca em simplicidade e máxima segurança elétrica, delegando as proteções e filtragens (como Filtro EMI e Termistor NTC/Inrush) para os circuitos profissionais já embutidos na Fonte Colmeia.
 
 ### Componentes
 
 | Componente | Função |
 |---|---|
-| **Fusível AC** (3A a 5A) | Proteção contra curto-circuito bruto |
-| **NTC 5D-11** | Limitador de corrente de partida (em série com a Fase) |
-| **NDF 222M** (Capacitores Y) | Filtro EMI (Fase–Terra e Neutro–Terra) |
-| **Módulo Relé SSR 1CH** | Controle independente para o Canister (AC) |
+| **Fusível de Vidro AC** (3A a 5A) | Item obrigatório: Proteção contra curto-circuito bruto e risco de incêndio |
+| **Módulo Relé SSR 1CH** | Controle independente via ESP32 para o filtro Canister (AC) |
 
 ### Esquema de Ligação
 
-```
+```text
 [ TOMADA IEC C14 ]
       │
-      ├─── [ PINO TERRA ] ────────────────────────┬───► [ Borne G Fonte ]
-      │         │                                 │
-      │         ├───[ NDF 222M ]─── (Conecta no L)│
-      │         └───[ NDF 222M ]─── (Conecta no N)│
-      │                                           │
-      ├─── [ PINO N (Neutro) ] ───────────────────┼───► [ Borne N Fonte ]
-      │                                           └───► [ Relé COMUM ]
+      ├─── [ PINO TERRA (Verde) ] ────────┬─────────► [ Borne G (TERRA) da Fonte ]
+      │                                   │
+      │                                   └─────────► [ Pino TERRA - Tomada Canister ]
+      │         
+      ├─── [ PINO NEUTRO (Azul) ] ────────┬─────────► [ Borne N (NEUTRO) da Fonte ]
+      │                                   │
+      │                                   └─────────► [ Pino NEUTRO - Tomada Canister ]
       │
-      └─── [ PINO L (Fase) ] ─── [ FUSÍVEL AC ] ──┐
-                                                   │
-              ┌────────────────────────────────────┘
-              │                                    │
-        [ NTC 5D-11 ]                       [ RELÉ ENTRADA ]
-        (Em série)                          (Pino Fase/NA)
-              │                                    │
-        [ Borne L Fonte ]                   [ TOMADA CANISTER ]
+      └─── [ PINO FASE (Marrom) ] ─── [ FUSÍVEL ] ──┐
+                                                    │
+             ┌──────────────────────────────────────┘
+             │                                  
+             ├───────────────────► [ Borne L (FASE) da Fonte ]
+             │
+             └───► [ Parafuso 1 do Relé SSR ] ── INTERRUPTOR ──► [ Parafuso 2 do Relé SSR ] ──► [ Pino FASE - Tomada Canister ]
 ```
 
 ---
@@ -67,28 +64,29 @@ Responsável por converter a potência para os níveis lógicos e manter a estab
 | **Fonte Colmeia 180W** | Ajustada para 12.53V |
 | **Fusível T5AL250V** | Firewall físico para as 8 bombas e sensores |
 | **LM2596** | Step-down ajustado para 5.1V (alimentação ESP32) |
-| **2× 470µF 16V** | Em paralelo na entrada 12V do MOSFET |
-| **4× 1000µF 10V** | Em paralelo na saída 5V (perto do ESP32) |
+| **1× 470µF 16V** | Em paralelo na entrada 12V do MOSFET (Evita queda de tensão quando as bombas ligam) |
+| **4× 1000µF 10V** | Em paralelo na saída 5V (Atua como "Nobreak" para o ESP32 aguentar flutuações e picos da rede) |
 
 ### Esquema de Ligação
 
-```
+```text
 [ FONTE 12.53V ]
    │              │
- (V+)           (V─) ─────────────────────────┐ (GND ESTRELA)
-   │              │                            │
-[FUSÍVEL T5A]     │                            │
-   │              │                            │
-   ├──────────────┼────────────┐               │
-   │              │            │               │
-[LM2596 IN+]  [LM2596 IN─]  [MOSFET VIN]  [MOSFET GND]
-   │              │            │               │
-(Saída 5.1V)      │      (2× 470µF 16V)        │
-   │              │            │               │
-[ESP32 VIN]   [ESP32 GND]      │               │
-   │              │      [ 8 CANAIS MOSFET ]   │
-(4× 1000µF 10V)   │            │               │
-   │              └────────────┴───────────────┘
+ (V+)           (V─) ──────────────────────────────┐ (GND ESTRELA)
+   │              │                                │
+[FUSÍVEL T5A]     │                                │
+   │              │                                │
+   ├──────────────┼────────────────┐               │
+   │              │                │               │
+[LM2596 IN+]  [LM2596 IN─]    [MOSFET VIN]   [MOSFET GND]
+   │              │                │               │
+(Saída 5.1V)      │         (1× 470µF 16V)         │
+   │              │                │               │
+(4× 1000µF 10V)   │                │               │
+   │              │                │               │
+[ESP32 VIN]   [ESP32 GND]          │               │
+   │              │         [ 8 CANAIS MOSFET ]    │
+   │              └────────────────┴───────────────┘
 ```
 
 > [!IMPORTANT]
@@ -187,7 +185,7 @@ Sensor sem contato que detecta a presença de líquido através da parede do vid
 
 ## 🛠️ Notas de Implementação Segura
 
-1. **Prioridade de Soldagem** — O NTC deve ser isolado com espaguete termo-retrátil de alta temperatura, pois aquece durante a operação.
+1. **Conexões AC** — Isole todas as soldas e conexões de 110V/220V com espaguete termo-retrátil para segurança máxima.
 
 2. **Polaridade dos Capacitores** — Verificar a listra negativa em todos os eletrolíticos (especialmente os de 1000µF 10V que estão operando em 5.1V).
 
