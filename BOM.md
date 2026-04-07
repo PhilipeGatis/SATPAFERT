@@ -79,8 +79,8 @@ Lista completa de componentes do sistema IARA.
 
 | # | Componente | Especificação | Qtd |
 |---|---|---|---|
-| 30 | Conector RJ45 fêmea | Painel, para sensores remotos | 2–4 |
-| 31 | Cabo patch RJ45 | Cat5e, 1.2m (sensores) | 2–4 |
+| 30 | Conector GX12 (Aviação) | Painel fêmea/macho, para sensores | 2–4 |
+| 31 | Cabo blindado multi-vias | 4 a 5 vias, soldável no GX12, 1.2m | 2–4 |
 | 32 | Borne KRE / Wago | Conexões de potência | ~20 |
 | 33 | Espaguete termo-retrátil | Isolamento NTC e soldas | 1m |
 | 34 | Fio 22 AWG | Sinal / sensores | ~5m |

@@ -11,7 +11,7 @@ The system uses a **Defense in Depth** topology with noise filtering at the inpu
 │                     │     │                     │     │                     │
 │  • AC Fuse          │     │  • 12.53V PSU       │     │  • Flyback Diodes   │
 │  • NTC (Inrush)     │     │  • LM2596 → 5.1V    │     │  • Decoupling Caps  │
-│  • EMI Filter (Y)   │     │  • Cap Bank         │     │  • Sensors (RJ45)   │
+│  • EMI Filter (Y)   │     │  • Cap Bank         │     │  • Sensors (GX12)   │
 │  • Canister Relay   │     │  • 8-Ch MOSFET      │     │  • Pumps + Valve    │
 └─────────────────────┘     └─────────────────────┘     └─────────────────────┘
 ```
@@ -105,7 +105,7 @@ Responsible for mitigating inductive noise (Flyback) and stabilizing sensor read
 | **FR154 Diodes** (Fast Recovery) | Refill and Drain Pumps | 2 |
 | **FR154 Diodes** (Fast Recovery) | Peristaltic Pumps (4 Fert + 1 Prime) | 5 |
 | **1N5822 Diode** (Schottky) | Solenoid Valve (Channel 8) | 1 |
-| **10µF / 22µF 50V Capacitors** | Sensor decoupling at cable ends (RJ45) | — |
+| **10µF / 22µF 50V Capacitors** | Sensor decoupling at cable ends (GX12) | — |
 
 > [!NOTE]
 > **Total: 8 flyback diodes** — one per motor channel (7× FR154 + 1× 1N5822). All installed at the cable end, next to the motor.

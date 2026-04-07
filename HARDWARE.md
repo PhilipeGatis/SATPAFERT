@@ -11,7 +11,7 @@ O sistema utiliza uma topologia de **Defesa em Profundidade**, com filtragem de 
 │                     │     │                     │     │                     │
 │  • Fusível AC       │     │  • Fonte 12.53V     │     │  • Diodos Flyback   │
 │  • NTC (Inrush)     │     │  • LM2596 → 5.1V    │     │  • Caps desacopl.   │
-│  • Filtro EMI (Y)   │     │  • Banco de Caps    │     │  • Sensores (RJ45)  │
+│  • Filtro EMI (Y)   │     │  • Banco de Caps    │     │  • Sensores (GX12)  │
 │  • Relé Canister    │     │  • MOSFET 8 canais  │     │  • Bombas + Válvula │
 └─────────────────────┘     └─────────────────────┘     └─────────────────────┘
 ```
@@ -105,7 +105,7 @@ Responsável por mitigar o ruído indutivo (Flyback) e estabilizar a leitura dos
 | **Diodos FR154** (Fast Recovery) | Bombas de Recalque e Esgoto | 2 |
 | **Diodos FR154** (Fast Recovery) | Bombas Peristálticas (4 Fert + 1 Prime) | 5 |
 | **Diodo 1N5822** (Schottky) | Válvula Solenoide (Canal 8) | 1 |
-| **Capacitores 10µF / 22µF 50V** | Desacoplamento na ponta dos sensores (RJ45) | — |
+| **Capacitores 10µF / 22µF 50V** | Desacoplamento na ponta dos sensores (GX12) | — |
 
 > [!NOTE]
 > **Total: 8 diodos flyback** — um para cada canal com motor (7× FR154 + 1× 1N5822). Todos instalados na ponta do fio, junto ao motor.

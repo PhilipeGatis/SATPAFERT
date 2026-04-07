@@ -79,8 +79,8 @@ Complete component list for the IARA system.
 
 | # | Component | Specification | Qty |
 |---|---|---|---|
-| 30 | RJ45 Female Connector | Panel mount, remote sensors | 2–4 |
-| 31 | RJ45 Patch Cable | Cat5e, 1.2m (sensors) | 2–4 |
+| 30 | GX12 Aviation Connector | Panel mount, for remote sensors | 2–4 |
+| 31 | Shielded Multi-core Cable | 4-5 cores, solderable to GX12, 1.2m | 2–4 |
 | 32 | KRE / Wago Terminal | Power connections | ~20 |
 | 33 | Heat-Shrink Tubing | NTC and solder insulation | 1m |
 | 34 | 22 AWG Wire | Signal / sensors | ~5m |
