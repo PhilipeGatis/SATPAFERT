@@ -26,9 +26,10 @@ bottle_d = 64;   // Diâmetro real da garrafa Seachem 500ml
 bottle_hole_d = 65; // Furo final exato de 65mm para abraçar a garrafa
 
 pump_body_d = 48;
-pump_holes = 47.5;     // Entre eixos de fixação
-pump_mount_hole_d = 3; // Diâmetro do parafuso
+pump_holes = 47.5;         // Entre eixos de fixação
+pump_mount_hole_d = 3;     // Diâmetro do parafuso
 hose_hole_d = 8;
+hose_slot_back = 23;       // Quanto o vão de mangueira avança para a traseira (atrás dos furos)
 tab_w = 15;      // Largura padrão das abas (tabs) de fixação
 
 // ============================================================
@@ -204,8 +205,11 @@ module shelf_pmp_2d() {
             translate([x - pump_holes/2, depth/2]) circle(d=pump_mount_hole_d);
             translate([x + pump_holes/2, depth/2]) circle(d=pump_mount_hole_d);
             
-            // Vão amplo para passagem das mangueiras (do centro até a borda frontal)
-            translate([x, depth/2 + 24]) square([40, 48], center=true);
+            // Vão para passagem das mangueiras
+            // Vai de 20mm atrás dos furos M3 até a borda frontal
+            slot_h  = depth/2 + hose_slot_back;           // 40 + 20 = 60mm
+            slot_cy = depth/2 + (depth/2 - hose_slot_back)/2; // centro do slot
+            translate([x, slot_cy]) square([40, slot_h], center=true);
         }
     }
     
