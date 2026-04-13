@@ -59,7 +59,7 @@ bool DisplayManager::initHardware() {
   pinMode(PIN_BTN, INPUT_PULLUP);
 
   _display.initR(INITR_BLACKTAB);
-  _display.setRotation(1); // Landscape: 160×128
+  _display.setRotation(3); // Landscape: 160×128 (rotated 180°)
   Serial.println("[Display] ST7735 128x160 initialized OK.");
 
   // Color splash screen

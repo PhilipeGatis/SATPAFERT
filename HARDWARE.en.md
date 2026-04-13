@@ -181,6 +181,57 @@ Non-contact sensor that detects liquid presence through glass/tube walls. NPN op
 > [!TIP]
 > **No external resistor needed.** The ESP32's internal pull-up (~45kΩ) is sufficient for the NPN open-collector. The sensor is glued to the **outside** of the aquarium glass at the desired maximum level.
 
+### Wiring Diagram — TFT ST7735 Display (SPI)
+
+1.8" color display, 128×160 pixels. Operates at **3.3V** — incompatible with 5V. Uses software SPI (bit-banging) on custom pins.
+
+| Display Pin | ESP32 Connection | GPIO | Notes |
+|---|---|---|---|
+| **VCC** | 3.3V | — | ⚠️ Never use 5V |
+| **GND** | GND | — | |
+| **CS** | D15 | GPIO15 | Chip Select |
+| **RESET** | EN pin | — | Hardware reset shared with ESP32 |
+| **A0 (DC)** | TX2 | GPIO17 | Data/Command |
+| **SDA (MOSI)** | D23 | GPIO23 | SPI Data |
+| **SCK** | RX2 | GPIO16 | SPI Clock |
+| **LED** | 3.3V | — | Fixed backlight (no free GPIO available) |
+
+```
+ESP32 3.3V  ────►  VCC
+ESP32 GND   ────►  GND
+ESP32 D15   ────►  CS
+ESP32 EN    ────►  RESET
+ESP32 TX2   ────►  A0 (DC)
+ESP32 D23   ────►  SDA (MOSI)
+ESP32 RX2   ────►  SCK
+ESP32 3.3V  ────►  LED (fixed backlight)
+```
+
+> [!WARNING]
+> The display **RESET** pin must connect to the ESP32 **EN** pin (not a GPIO). This ensures the display resets together with the microcontroller. With EN HIGH (normal operation), the display works normally.
+
+> [!NOTE]
+> On the ESP32 DevKit V1 breakout board, **D16** and **D17** are labeled **RX2** and **TX2** respectively. Use your terminal block labels to identify the correct positions.
+
+---
+
+### Wiring Diagram — Navigation Button
+
+Physical button that controls the display: short press cycles pages; long press opens the menu (start TPA or toggle maintenance mode).
+
+| Pin | Connection | GPIO | Configuration |
+|---|---|---|---|
+| **Terminal 1** | GPIO0 (BOOT) | GPIO0 | `INPUT_PULLUP` — active LOW |
+| **Terminal 2** | GND | — | |
+
+```
+ESP32 GPIO0 (BOOT) ──── [ BUTTON ] ──── GND
+         INPUT_PULLUP, active LOW (pressed = LOW)
+```
+
+> [!TIP]
+> GPIO0 is the physical **BOOT** button on the ESP32 board. You can use the onboard button or connect an external button in parallel to the same pins. The firmware detects **short press** (page change) and **long press > 1s** (opens menu).
+
 ---
 
 ## 🛠️ Safe Implementation Notes
