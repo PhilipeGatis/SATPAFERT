@@ -126,6 +126,7 @@ graph LR
     ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrasonic JSN]
     ESP32 ---|D4| Water[Capacitive Sensor]
     ESP32 ---|D5| Float[Float Switch]
+    ESP32 ---|D0| Button[Button]
   end
 
   MOSFET -->|OUT 1–5| Peristaltic[5x Peristaltic Pumps]
@@ -142,6 +143,7 @@ graph LR
 
 | GPIO | Function | Component | Direction | Protocol |
 |------|----------|-----------|-----------|----------|
+| **D0** | Contact button | Push/Tactile Button (BOOT) | Input (PULLUP) | Digital |
 | **D2** | Canister ON/OFF | Omron SSR Relay | Output | Digital |
 | **D4** | Max level sensor | XKC-Y25-NPN (capacitive) | Input (PULLUP) | Digital |
 | **D5** | Reservoir float | Horizontal Float Switch | Input (PULLUP) | Digital |
@@ -194,6 +196,7 @@ The system is designed with a **safety-first** approach to prevent flooding, equ
 | **Flyback diodes** | FR154 on pumps, 1N5822 on solenoid — absorb voltage spikes from inductive loads. |
 | **Decoupling capacitors** | 1000µF near ESP32, 470µF near MOSFET module — absorb brownout transients. |
 | **Voltage divider (ECHO)** | 5V → 3.3V for JSN-SR04T echo pin — protects ESP32 GPIO. |
+| **Siphon break (Drain)** | Wire a solenoid valve in parallel with the drain pump (requires its own flyback diode) or make a small breather hole in the hose inside the aquarium to prevent water from continuing to drain by gravity after the pump turns off. |
 
 ---
 

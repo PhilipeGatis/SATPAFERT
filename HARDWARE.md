@@ -243,3 +243,5 @@ ESP32 GPIO0 (BOOT) ──── [ BOTÃO ] ──── GND
 3. **Diodos Flyback** — Devem ser instalados obrigatoriamente na ponta do fio (junto ao motor) para evitar que o cabo de 1,2m irradie ruído como uma antena.
 
 4. **GND Estrela** — Todas as referências negativas devem retornar diretamente ao borne V− da fonte colmeia para evitar loops de terra.
+
+5. **Efeito Sifão (Hidráulica)** — Para evitar o esvaziamento contínuo do aquário por gravidade após o desligamento da bomba de drenagem, ligue uma válvula solenoide em paralelo com a bomba (no mesmo canal MOSFET, garantindo um diodo flyback para cada) ou faça um furo de respiro na mangueira.

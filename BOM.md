@@ -59,7 +59,8 @@ Lista completa de componentes do sistema IARA.
 | 21 | Sensor capacitivo de nível | XKC-Y25-NPN, sem contato, 3.3–5V (GPIO 4) | 1 |
 | 22 | Boia float switch | Nível do reservatório (GPIO 35) | 1 |
 | 23 | DS3231 | Módulo RTC I2C (SDA 21 / SCL 22) | 1 |
-| 24 | Display OLED 0.96" | SSD1306, I2C, 128×64 | 1 |
+| 24 | Display TFT 1.8" | ST7735, SPI, 128×160 | 1 |
+| 24b| Botão Push/Tactile | Navegação do display (GPIO 0) | 1 |
 
 ---
 
@@ -97,4 +98,4 @@ Lista completa de componentes do sistema IARA.
 | Resistores | 2 |
 | Motores / bombas | 7 |
 | Sensores | 4 |
-| Módulos (ESP32, LM2596, MOSFET, Relé, RTC, OLED) | 6 |
+| Módulos (ESP32, LM2596, MOSFET, Relé, RTC, TFT) | 6 |

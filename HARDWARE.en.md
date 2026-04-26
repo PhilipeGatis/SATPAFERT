@@ -243,3 +243,5 @@ ESP32 GPIO0 (BOOT) ──── [ BUTTON ] ──── GND
 3. **Flyback Diodes** — Must be installed at the cable end (next to the motor) to prevent the 1.2m cable from radiating noise like an antenna.
 
 4. **Star GND** — All negative references must return directly to the PSU V− terminal to avoid ground loops.
+
+5. **Siphon Effect (Hydraulics)** — To prevent continuous gravity draining of the aquarium after the drain pump is turned off, wire a solenoid valve in parallel with the drain pump (on the same MOSFET channel, ensuring a flyback diode for each) or make a breather hole in the hose.

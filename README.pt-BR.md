@@ -126,6 +126,7 @@ graph LR
     ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrassônico JSN]
     ESP32 ---|D4| Water[Sensor Capacitivo]
     ESP32 ---|D5| Float[Boia]
+    ESP32 ---|D0| Button[Botão]
   end
 
   MOSFET -->|OUT 1 a 5| Peristalticas[5x Bombas Peristálticas]
@@ -142,6 +143,7 @@ graph LR
 
 | GPIO | Função | Componente | Direção | Protocolo |
 |------|--------|------------|---------|-----------|
+| **D0** | Botão de contato | Botão Push/Tactile (BOOT) | Entrada (PULLUP) | Digital |
 | **D2** | Canister ON/OFF | Relé SSR Omron | Saída | Digital |
 | **D4** | Sensor de nível máx. | XKC-Y25-NPN (capacitivo) | Entrada (PULLUP) | Digital |
 | **D5** | Boia do reservatório | Float Switch horizontal | Entrada (PULLUP) | Digital |
@@ -194,6 +196,7 @@ O sistema foi projetado com abordagem **safety-first** para prevenir alagamentos
 | **Diodos flyback** | FR154 nas bombas, 1N5822 na solenoide — absorvem picos de tensão de cargas indutivas. |
 | **Capacitores de desacoplamento** | 1000µF perto do ESP32, 470µF perto do módulo MOSFET — absorvem transientes de brownout. |
 | **Divisor de tensão (ECHO)** | 5V → 3.3V no pino echo do JSN-SR04T — protege o GPIO do ESP32. |
+| **Quebra-sifão (Drenagem)** | Instale uma válvula solenoide em paralelo com a bomba de drenagem (requer diodo flyback próprio) ou faça um furo de respiro na mangueira dentro do aquário para evitar que a água continue escoando por gravidade após a bomba desligar. |
 
 ---
 
