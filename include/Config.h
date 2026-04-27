@@ -24,7 +24,7 @@ constexpr uint8_t PIN_CANISTER = 2; // Relay SSR for canister filter
 
 // --- Sensors ---
 constexpr uint8_t PIN_TRIG = 18; // Ultrasonic JSN-SR04T trigger
-constexpr uint8_t PIN_ECHO = 19; // Ultrasonic JSN-SR04T echo
+constexpr uint8_t PIN_ECHO = 34; // Ultrasonic JSN-SR04T echo
 constexpr uint8_t PIN_OPTICAL =
     4; // Capacitive max-level sensor XKC-Y25-NPN (INPUT_PULLUP, active LOW)
 constexpr uint8_t PIN_FLOAT =
@@ -38,7 +38,7 @@ constexpr uint8_t PIN_TFT_SCK = 16;  // SCK  — SPI Clock
 constexpr int8_t PIN_TFT_RST = -1;   // RESET — Tied to ESP32 EN
 
 // --- Navigation Button ---
-constexpr uint8_t PIN_BTN = 0; // BOOT button (INPUT_PULLUP, active LOW)
+constexpr uint8_t PIN_BTN = 19; // Panel button (INPUT_PULLUP, active LOW)
 
 // --- Display ---
 constexpr unsigned long DISPLAY_TIMEOUT_MS = 30UL * 1000; // 30s auto-off

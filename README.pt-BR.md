@@ -123,10 +123,10 @@ graph LR
     ESP32 -->|SPI D15,16,17,23| TFT[Display TFT ST7735]
     ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
     ESP32 -->|D2| SSR[Omron SSR]
-    ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrassônico JSN]
+    ESP32 ---|D18 Trig, D34 Echo| Ultra[Ultrassônico JSN]
     ESP32 ---|D4| Water[Sensor Capacitivo]
     ESP32 ---|D5| Float[Boia]
-    ESP32 ---|D0| Button[Botão]
+    ESP32 ---|D19| Button[Botão]
   end
 
   MOSFET -->|OUT 1 a 5| Peristalticas[5x Bombas Peristálticas]
@@ -143,7 +143,6 @@ graph LR
 
 | GPIO | Função | Componente | Direção | Protocolo |
 |------|--------|------------|---------|-----------|
-| **D0** | Botão de contato | Botão Push/Tactile (BOOT) | Entrada (PULLUP) | Digital |
 | **D2** | Canister ON/OFF | Relé SSR Omron | Saída | Digital |
 | **D4** | Sensor de nível máx. | XKC-Y25-NPN (capacitivo) | Entrada (PULLUP) | Digital |
 | **D5** | Boia do reservatório | Float Switch horizontal | Entrada (PULLUP) | Digital |
@@ -154,7 +153,7 @@ graph LR
 | **D16** | TFT SCK | Display ST7735 (SCK) | Saída | SPI (SCK) |
 | **D17** | TFT A0 (Data/Command) | Display ST7735 (A0) | Saída | SPI (DC) |
 | **D18** | Trigger ultrassônico | JSN-SR04T | Saída | Digital |
-| **D19** | Echo ultrassônico | JSN-SR04T | Entrada | Digital (3.3V via divisor) |
+| **D19** | Botão de contato | Botão Push/Tactile (Painel) | Entrada (PULLUP) | Digital |
 | **D21** | SDA | RTC DS3231 | Bidirecional | I2C |
 | **D22** | SCL | RTC DS3231 | Bidirecional | I2C |
 | **D23** | TFT SDA (Data) | Display ST7735 (SDA) | Saída | SPI (MOSI) |
@@ -163,6 +162,7 @@ graph LR
 | **D27** | Fertilizante CH4 | MOSFET canal 4 | Saída | Digital |
 | **D32** | Válvula solenóide | MOSFET canal 8 | Saída | Digital |
 | **D33** | Bomba de recalque | MOSFET canal 7 | Saída | Digital |
+| **D34** | Echo ultrassônico | JSN-SR04T | Entrada | Digital (3.3V via divisor) |
 | **VIN** | Alimentação 5V | LM2596 step-down | — | Energia |
 | **EN** | Reset compartilhado | Display ST7735 (RESET) | — | Reset |
 | **3.3V** | Backlight | Display ST7735 (LED) | — | Energia |

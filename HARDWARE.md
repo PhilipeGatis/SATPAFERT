@@ -126,12 +126,12 @@ Responsável por mitigar o ruído indutivo (Flyback) e estabilizar a leitura dos
 
 ### Esquema de Ligação — Sensor Ultrassônico (JSN-SR04T)
 
-O sensor opera em 5V, mas o ESP32 suporta no máximo **3.3V** nos GPIOs. O pino **ECHO** precisa de um divisor de tensão resistivo para reduzir o sinal de 5V → 3.3V antes de entrar no GPIO19.
+O sensor opera em 5V, mas o ESP32 suporta no máximo **3.3V** nos GPIOs. O pino **ECHO** precisa de um divisor de tensão resistivo para reduzir o sinal de 5V → 3.3V antes de entrar no GPIO34.
 
 | Componente | Função |
 |---|---|
-| **Resistor 1kΩ** (R1) | Em série entre ECHO e GPIO19 |
-| **Resistor 2kΩ** (R2) | Pull-down entre GPIO19 e GND |
+| **Resistor 1kΩ** (R1) | Em série entre ECHO e GPIO34 |
+| **Resistor 2kΩ** (R2) | Pull-down entre GPIO34 e GND |
 
 **Fórmula:** `Vout = 5V × R2 / (R1 + R2) = 5 × 2k / 3k = 3.33V` ✅
 
@@ -148,7 +148,7 @@ O sensor opera em 5V, mas o ESP32 suporta no máximo **3.3V** nos GPIOs. O pino 
                                       │
                                  [ R1 = 1kΩ ]
                                       │
-                    ESP32 GPIO19 ──────┤
+                    ESP32 GPIO34 ──────┤
                                       │
                                  [ R2 = 2kΩ ]
                                       │
@@ -221,16 +221,16 @@ Botão físico que controla o display: pressionar brevemente muda a página; pre
 
 | Pino | Conexão | GPIO | Configuração |
 |---|---|---|---|
-| **Terminal 1** | GPIO0 (BOOT) | GPIO0 | `INPUT_PULLUP` — ativo em LOW |
+| **Terminal 1** | GPIO19 | GPIO19 | `INPUT_PULLUP` — ativo em LOW |
 | **Terminal 2** | GND | — | |
 
 ```
-ESP32 GPIO0 (BOOT) ──── [ BOTÃO ] ──── GND
+ESP32 GPIO19 ─────── [ BOTÃO ] ──── GND
          INPUT_PULLUP, ativo em LOW (pressionado = LOW)
 ```
 
 > [!TIP]
-> O GPIO0 é o botão **BOOT** físico da placa ESP32. É possível usar o botão já embutido na placa DevKit ou conectar um botão externo em paralelo aos mesmos pinos. O firmware detecta **pressão curta** (troca de página) e **pressão longa > 1s** (abre menu).
+> O botão pode ser fixado no painel usando um push-button ou tactile switch comum. O firmware detecta **pressão curta** (troca de página) e **pressão longa > 1s** (abre menu).
 
 ---
 

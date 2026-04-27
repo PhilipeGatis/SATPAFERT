@@ -126,12 +126,12 @@ Responsible for mitigating inductive noise (Flyback) and stabilizing sensor read
 
 ### Wiring Diagram — Ultrasonic Sensor (JSN-SR04T)
 
-The sensor operates at 5V, but the ESP32 supports a maximum of **3.3V** on GPIOs. The **ECHO** pin requires a resistive voltage divider to reduce 5V → 3.3V before entering GPIO19.
+The sensor operates at 5V, but the ESP32 supports a maximum of **3.3V** on GPIOs. The **ECHO** pin requires a resistive voltage divider to reduce 5V → 3.3V before entering GPIO34.
 
 | Component | Function |
 |---|---|
-| **1kΩ Resistor** (R1) | In series between ECHO and GPIO19 |
-| **2kΩ Resistor** (R2) | Pull-down between GPIO19 and GND |
+| **1kΩ Resistor** (R1) | In series between ECHO and GPIO34 |
+| **2kΩ Resistor** (R2) | Pull-down between GPIO34 and GND |
 
 **Formula:** `Vout = 5V × R2 / (R1 + R2) = 5 × 2k / 3k = 3.33V` ✅
 
@@ -148,7 +148,7 @@ The sensor operates at 5V, but the ESP32 supports a maximum of **3.3V** on GPIOs
                                       │
                                  [ R1 = 1kΩ ]
                                       │
-                    ESP32 GPIO19 ──────┤
+                    ESP32 GPIO34 ──────┤
                                       │
                                  [ R2 = 2kΩ ]
                                       │
@@ -221,16 +221,16 @@ Physical button that controls the display: short press cycles pages; long press 
 
 | Pin | Connection | GPIO | Configuration |
 |---|---|---|---|
-| **Terminal 1** | GPIO0 (BOOT) | GPIO0 | `INPUT_PULLUP` — active LOW |
+| **Terminal 1** | GPIO19 | GPIO19 | `INPUT_PULLUP` — active LOW |
 | **Terminal 2** | GND | — | |
 
 ```
-ESP32 GPIO0 (BOOT) ──── [ BUTTON ] ──── GND
+ESP32 GPIO19 ─────── [ BUTTON ] ──── GND
          INPUT_PULLUP, active LOW (pressed = LOW)
 ```
 
 > [!TIP]
-> GPIO0 is the physical **BOOT** button on the ESP32 board. You can use the onboard button or connect an external button in parallel to the same pins. The firmware detects **short press** (page change) and **long press > 1s** (opens menu).
+> The button can be mounted on the panel using a standard push-button or tactile switch. The firmware detects **short press** (page change) and **long press > 1s** (opens menu).
 
 ---
 

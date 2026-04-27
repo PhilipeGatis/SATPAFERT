@@ -123,10 +123,10 @@ graph LR
     ESP32 -->|SPI D15,16,17,23| TFT[TFT Display ST7735]
     ESP32 -->|D12, D13, D14, D25-D27, D32, D33| MOSFET
     ESP32 -->|D2| SSR[Omron SSR]
-    ESP32 ---|D18 Trig, D19 Echo| Ultra[Ultrasonic JSN]
+    ESP32 ---|D18 Trig, D34 Echo| Ultra[Ultrasonic JSN]
     ESP32 ---|D4| Water[Capacitive Sensor]
     ESP32 ---|D5| Float[Float Switch]
-    ESP32 ---|D0| Button[Button]
+    ESP32 ---|D19| Button[Button]
   end
 
   MOSFET -->|OUT 1–5| Peristaltic[5x Peristaltic Pumps]
@@ -143,7 +143,6 @@ graph LR
 
 | GPIO | Function | Component | Direction | Protocol |
 |------|----------|-----------|-----------|----------|
-| **D0** | Contact button | Push/Tactile Button (BOOT) | Input (PULLUP) | Digital |
 | **D2** | Canister ON/OFF | Omron SSR Relay | Output | Digital |
 | **D4** | Max level sensor | XKC-Y25-NPN (capacitive) | Input (PULLUP) | Digital |
 | **D5** | Reservoir float | Horizontal Float Switch | Input (PULLUP) | Digital |
@@ -154,7 +153,7 @@ graph LR
 | **D16** | TFT SCK | ST7735 Display (SCK) | Output | SPI (SCK) |
 | **D17** | TFT A0 (Data/Command) | ST7735 Display (A0) | Output | SPI (DC) |
 | **D18** | Ultrasonic Trigger | JSN-SR04T | Output | Digital |
-| **D19** | Ultrasonic Echo | JSN-SR04T | Input | Digital (3.3V via divider) |
+| **D19** | Contact button | Push/Tactile Button (Panel) | Input (PULLUP) | Digital |
 | **D21** | SDA | DS3231 RTC | Bidirectional | I2C |
 | **D22** | SCL | DS3231 RTC | Bidirectional | I2C |
 | **D23** | TFT SDA (Data) | ST7735 Display (SDA) | Output | SPI (MOSI) |
@@ -163,6 +162,7 @@ graph LR
 | **D27** | Fertilizer CH4 | MOSFET channel 4 | Output | Digital |
 | **D32** | Solenoid valve | MOSFET channel 8 | Output | Digital |
 | **D33** | Refill pump | MOSFET channel 7 | Output | Digital |
+| **D34** | Ultrasonic Echo | JSN-SR04T | Input | Digital (3.3V via divider) |
 | **VIN** | 5V Power | LM2596 step-down | — | Power |
 | **EN** | Shared reset | ST7735 Display (RESET) | — | Reset |
 | **3.3V** | Backlight | ST7735 Display (LED) | — | Power |
